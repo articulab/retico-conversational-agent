@@ -57,6 +57,8 @@ from whisper_asr_interruption import SpeechRecognitionTurnIU
 
 from transitions import Machine
 
+from retico_conversational_agent.dialogue_history import DialogueHistory
+
 
 class DialogueManagerModule(retico_core.AbstractModule):
     """Module that plays a central role in the dialogue system because it centralizes a lot of information to be able to take complex decisions at the dialogue level.

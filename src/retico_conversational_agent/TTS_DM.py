@@ -1,4 +1,6 @@
-"""Coqui-ai TTS Module ==================
+"""
+TTS Module
+==========
 
 A retico module that provides Text-To-Speech (TTS), aligns its inputs
 and ouputs (text and audio), and handles user interruption.
@@ -107,7 +109,7 @@ class TtsDmModule(retico_core.AbstractModule):
         language="en",
         speaker_wav="TTS/wav_files/tts_api/tts_models_en_jenny_jenny/long_2.wav",
         frame_duration=0.2,
-        printing=False,
+        verbose=False,
         device=None,
         **kwargs,
     ):
@@ -122,8 +124,10 @@ class TtsDmModule(retico_core.AbstractModule):
                 desired voice to copy (for voice cloning models).
             frame_duration (float): duration of the audio chunks
                 contained in the outputted TextAlignedAudioIUs.
-            printing (bool, optional): You can choose to print some
-                running info on the terminal. Defaults to False.
+            verbose (bool, optional): the verbose level of the TTS
+                model. Defaults to False.
+            device (string, optional): the device the module will run on
+                (cuda for gpu, or cpu)
         """
         super().__init__(**kwargs)
 
@@ -156,7 +160,7 @@ class TtsDmModule(retico_core.AbstractModule):
         self.chunk_size_bytes = None
 
         # general
-        self.printing = printing
+        self.verbose = verbose
         self._tts_thread_active = False
         self.iu_buffer = []
         self.buffer_pointer = 0
@@ -177,21 +181,21 @@ class TtsDmModule(retico_core.AbstractModule):
         ]
 
     def synthesize(self, text):
-        """Takes the given text and returns the synthesized speech as 22050 Hz
-        int16-encoded numpy ndarray.
+        """Takes the given text and synthesizes speech using the TTS model.
+        Returns the synthesized speech as 22050 Hz int16-encoded numpy ndarray.
 
         Args:
-            text (str): The speech to synthesize
+            text (str): The text to use to synthesize speech.
 
         Returns:
-            bytes: The speech as a 22050 Hz int16-encoded numpy ndarray
+            bytes: The speech as a 22050 Hz int16-encoded numpy ndarray.
         """
 
         final_outputs = self.model.tts(
             text=text,
             return_extra_outputs=True,
             split_sentences=False,
-            verbose=self.printing,
+            verbose=self.verbose,
         )
 
         # if self.is_multilingual:
@@ -232,16 +236,16 @@ class TtsDmModule(retico_core.AbstractModule):
         return "".join(words), words
 
     def process_update(self, update_message):
-        """Overrides AbstractModule : https://github.com/retico-team/retico-
-        core/blob/main/retico_core/abstract.py#L402.
+        """Receives and stores the TurnTextIUs, so that they are later
+        used to synthesize speech. Also receives useful top-level
+        information about the dialogue from the DMIUS (interruptions,
+        backchannels, etc).
+        For now, the speech is synthsized every time a complete clause
+        is received (with the _process_one_clause function).
 
         Args:
             update_message (UpdateType): UpdateMessage that contains new
-                IUs to process, ADD IUs' data are added to the
-                current_input, COMMIT IUs are launching the speech
-                synthesizing (using the synthesize function) with the
-                accumulated text data in current_input (the sentence
-                chunk).
+                text to process, or top-level dialogue informations.
 
         Returns:
             _type_: returns None if update message is None.
@@ -294,6 +298,9 @@ class TtsDmModule(retico_core.AbstractModule):
             self.current_input.append(clause_ius)
 
     def _process_one_clause(self):
+        """function running in a separate thread, that synthesize and sends
+        speech when a complete textual clause is received and appened in
+        the current_input buffer."""
         while self._tts_thread_active:
             try:
                 time.sleep(0.02)
@@ -470,11 +477,11 @@ class TtsDmModule(retico_core.AbstractModule):
                 # wav_words_chunk_len.append(int(sum(durations[old_len_w:s_id])) * len_wav / total_duration )
                 old_len_w = s_id
 
-            if self.printing:
-                if len(pre_pro_words) > len(wav_words_chunk_len):
-                    print("TTS word alignment not exact, less tokens than words")
-                elif len(pre_pro_words) < len(wav_words_chunk_len):
-                    print("TTS word alignment not exact, more tokens than words")
+            # if self.verbose:
+            #     if len(pre_pro_words) > len(wav_words_chunk_len):
+            #         print("TTS word alignment not exact, less tokens than words")
+            #     elif len(pre_pro_words) < len(wav_words_chunk_len):
+            #         print("TTS word alignment not exact, more tokens than words")
 
             cumsum_wav_words_chunk_len = list(np.cumsum(wav_words_chunk_len))
 
@@ -547,8 +554,6 @@ class TtsDmModule(retico_core.AbstractModule):
     #             log_exception(module=self, exception=e)
 
     def setup(self):
-        """Overrides AbstractModule : https://github.com/retico-team/retico-
-        core/blob/main/retico_core/abstract.py#L798."""
         super().setup()
         self.model = TTS(self.model_name).to(self.device)
         self.samplerate = self.model.synthesizer.tts_config.get("audio")["sample_rate"]
@@ -557,8 +562,6 @@ class TtsDmModule(retico_core.AbstractModule):
         self.space_token = self.model.synthesizer.tts_model.tokenizer.encode(" ")[0]
 
     def prepare_run(self):
-        """Overrides AbstractModule : https://github.com/retico-team/retico-
-        core/blob/main/retico_core/abstract.py#L808."""
         super().prepare_run()
         self.buffer_pointer = 0
         self.iu_buffer = []
@@ -567,7 +570,5 @@ class TtsDmModule(retico_core.AbstractModule):
         threading.Thread(target=self._process_one_clause).start()
 
     def shutdown(self):
-        """Overrides AbstractModule : https://github.com/retico-team/retico-
-        core/blob/main/retico_core/abstract.py#L819."""
         super().shutdown()
         self._tts_thread_active = False

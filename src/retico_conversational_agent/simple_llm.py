@@ -97,7 +97,7 @@ class SimpleLLMModule(retico_core.AbstractModule):
 
     @staticmethod
     def description():
-        return "A module that provides NLG using an LLM."
+        return "A module that provides NLG using a LLM."
 
     @staticmethod
     def input_ius():
