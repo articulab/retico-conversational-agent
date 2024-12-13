@@ -1,0 +1,8 @@
+__pycache__/
+.vscode/
+models
+logs/
+run_plots/
+simple_retico_agent.egg-info
+build/
+_build/
