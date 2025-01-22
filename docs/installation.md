@@ -10,7 +10,7 @@
 ### clone repo
 
 ```bash
-git clone https://github.com/articulab/simple-retico-agent
+git clone https://github.com/articulab/retico-conversational-agent
 ```
 
 ### Create and activate your virtual environment
@@ -33,7 +33,7 @@ pip install .
 ```
 
 ````{note}
-After this, you should be able to run the system on your CPU (but it is not recommended as it will be very slow). You can test the system by executing the main file from `src/simple_retico_agent/` :
+After this, you should be able to run the system on your CPU (but it is not recommended as it will be very slow). You can test the system by executing the main file from `src/retico-conversational-agent/` :
 
 ```bash
 python main.py
@@ -131,10 +131,10 @@ To reinstall llama-cpp-python with cuda support on Windows :
 pip uninstall llama-cpp-python && set "CMAKE_ARGS=-DGGML_CUDA=on" && set "FORCE_CMAKE=1" && pip install --no-cache-dir llama-cpp-python 
 ```
 
-to check that your LLM is running on GPU, run your system with SimpleLLMModule's verbose argument set to True :
+to check that your LLM is running on GPU, run your system with LlmDmModule's verbose argument set to True :
 
 ```python
-llm = SimpleLLMModule(
+llm = LlmDmModule(
     model_path=None,
     model_repo=model_repo,
     model_name=model_name,

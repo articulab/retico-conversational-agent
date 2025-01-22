@@ -1,6 +1,6 @@
 
 
-Welcome to simple-retico-agent's documentation!
+Welcome to retico-conversational-agent's documentation!
 ===============================================
 
 .. toctree::
@@ -14,7 +14,7 @@ Welcome to simple-retico-agent's documentation!
    :maxdepth: 2
    :caption: Package API
 
-   autoapi/simple_retico_agent/index
+   autoapi/retico-conversational-agent/index
 
 .. include:: ../README.md
    :parser: myst

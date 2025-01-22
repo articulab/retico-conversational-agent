@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join("../src")))
 sys.path.insert(0, os.path.abspath(".."))
 
-import simple_retico_agent
+import retico_conversational_agent
 
 autoapi_dirs = ["../src"]
 autodoc_inherit_docstrings = True
@@ -35,7 +35,7 @@ autoapi_options = [
 
 # -- Project information -----------------------------------------------------
 
-project = "simple-retico-agent"
+project = "retico-conversational-agent"
 copyright = "2024, Marius Le Chapelier"
 author = "Marius Le Chapelier"
 
