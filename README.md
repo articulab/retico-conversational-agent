@@ -1,6 +1,6 @@
 # Retico Conversational Agent (part of Articulab's Son of Sara project)
 
-This repository is a presentation of a simple conversational agent, build upon an incremental platform for dialogue system called [retico](https://github.com/retico-team/). The agent is built to have a oral conversation  with the user, following a pre-defined scenario. This agent was developped as part of Son-of-Sara project, by [Articulab](https://articulab.hcii.cs.cmu.edu/), a multi-disciplinary cognitive science team, member of the Almanach project team, of the French public research center [Inria Paris](https://www.inria.fr/en).
+This repository is a presentation of a conversational agent, build upon an incremental platform for dialogue system called [retico](https://github.com/retico-team/). The agent is built to have a oral conversation  with the user, following a pre-defined scenario. This agent was developped as part of Son-of-Sara project, by [Articulab](https://articulab.hcii.cs.cmu.edu/), a multi-disciplinary cognitive science team, member of the Almanach project team, of the French public research center [Inria Paris](https://www.inria.fr/en).
 
 This agent is composed of multiple retico modules, each providing the system with a dialogue-related capacity (comprehension, answer generation, memory, etc). Some module use deep learning models to perform complex tasks.
 The system contains the following new modules :
@@ -11,6 +11,7 @@ The system contains the following new modules :
 - DialogueHistory : keeps the previous turns of agent and user, calculates the largest possible history and formats the previous turns into a LLM prompt with the desired template.
 - TTS : generates the voice of the agent corresponding to the textual answer from the LLM.
 - Speaker : outputs the voice of the agent through computer's speakers, and send agent's voice activity information to VAD.
+- DialogueManager : The system's "brain", it gathers information from most modules in the system and keep a dialogue "state" that describes the current locutor(s) if there is any, and decides wether (and when) the modules should start/stop/continue to generate the agent's answer.
 
 The retico system is meant to be used with a **headphone** ! If you don't use one, the agent will be able to listen to itself and will mistake its own voice for the voice of the user (and will most likely continuously answer itself). The voice cancellation model necessary to tackle this issue is not included (yet?) in this system.
 
@@ -87,8 +88,8 @@ Network is constructed :
 
 ```python
 mic.subscribe(vad)
-vad.subscribe(asr)
-asr.subscribe(llm)
+vad.subscribe(dm)
+dm.subscribe(asr)
 ...
 ```
 
