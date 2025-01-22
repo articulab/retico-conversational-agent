@@ -44,7 +44,7 @@ class VadModule(retico_core.AbstractModule):
 
     @staticmethod
     def name():
-        return "VAD Module"
+        return "VAD DM Module"
 
     @staticmethod
     def description():
@@ -149,7 +149,7 @@ class VadModule(retico_core.AbstractModule):
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
                     raw_audio = self.resample_audio(iu.raw_audio)
-                    VA_user = self.vad.is_speech(audio, self.target_framerate)
+                    VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
                     output_iu = self.create_iu(
                         grounded_in=iu,
                         raw_audio=raw_audio,

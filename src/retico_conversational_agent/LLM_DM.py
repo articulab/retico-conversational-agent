@@ -703,7 +703,7 @@ class LlmDmModule(retico_core.AbstractModule):
             # align dialogue history with last word spoken by speaker module
             if self.interrupted_speaker_iu is not None:
 
-                self.interruption_alignment_new_agent_sentence(agent_sentence)
+                self.interruption_alignment_new_agent_sentence(agent_sentence.decode("utf-8"))
 
         elif self.which_stop_criteria.startswith("stop_pattern"):
             # remove from agent sentence every word contained in the stop pattern encountered
@@ -875,7 +875,7 @@ class LlmDmModule(retico_core.AbstractModule):
                 model_path=self.model_path,
                 n_ctx=self.context_size,
                 n_gpu_layers=self.n_gpu_layers,
-                verbose=self.printing,
+                verbose=self.verbose,
             )
 
         elif self.model_repo is not None and self.model_name is not None:
@@ -885,7 +885,7 @@ class LlmDmModule(retico_core.AbstractModule):
                 device_map=self.device,
                 n_ctx=self.context_size,
                 n_gpu_layers=self.n_gpu_layers,
-                verbose=self.printing,
+                verbose=self.verbose,
             )
 
         else:

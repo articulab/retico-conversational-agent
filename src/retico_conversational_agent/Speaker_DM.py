@@ -37,7 +37,7 @@ from retico_conversational_agent.additional_IUs import (
 )
 
 
-class SpeakerInterruptionModule(retico_core.AbstractModule):
+class SpeakerDmModule(retico_core.AbstractModule):
     """A retico module that outputs through the computer's speakers the audio contained in
     TextAlignedAudioIUs. The module stops the speakers if it receives the information that the user
     started talking (user barge-in/interruption of agent turn).
@@ -60,7 +60,7 @@ class SpeakerInterruptionModule(retico_core.AbstractModule):
 
     @staticmethod
     def name():
-        return "Speaker Interruption Module"
+        return "Speaker DM Module"
 
     @staticmethod
     def description():

@@ -19,10 +19,61 @@ from retico_conversational_agent.VAD_DM import VadModule
 from retico_conversational_agent.ASR_DM import AsrDmModule
 from retico_conversational_agent.LLM_DM import LlmDmModule
 from retico_conversational_agent.TTS_DM import TtsDmModule
+from retico_conversational_agent.Speaker_DM import SpeakerDmModule
 from retico_conversational_agent.dialogue_manager import (
     DialogueManagerModule,
     DialogueManagerModule_2,
 )
+
+def test_cuda():
+    # parameters definition
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    verbose = True
+    log_folder = "logs/run"
+    model_path = "./models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
+    system_prompt = b"This is a spoken dialog scenario between a teacher and a 8 years old child student.\
+        The teacher is teaching mathemathics to the child student.\
+        As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
+        You play the role of a teacher. Here is the beginning of the conversation :"
+    plot_config_path = "configs/plot_config_3.json"
+    is_plot_live = False
+    prompt_format_config = "configs/prompt_format_config.json"
+    context_size = 2000
+
+    # configurate logger
+    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
+
+    # configure plot
+    configurate_plot(
+        is_plot_live=is_plot_live,
+        plot_config_path=plot_config_path,
+    )
+
+    dialogue_history = DialogueHistory(
+        prompt_format_config,
+        terminal_logger=terminal_logger,
+        initial_system_prompt=system_prompt,
+        context_size=context_size,
+    )
+
+    llm = LlmDmModule(
+        model_path,
+        None,
+        None,
+        dialogue_history=dialogue_history,
+        verbose=verbose,
+        device=device,
+    )
+
+    # running system
+    try:
+        network.run(llm)
+        terminal_logger.info("Dialog system running until ENTER key is pressed")
+        input()
+        network.stop(llm)
+    except Exception:
+        terminal_logger.exception("test")
+        network.stop(llm)
 
 
 from retico_core.log_utils import (
@@ -186,17 +237,8 @@ def main_DM():
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
         You play the role of a teacher. Here is the beginning of the conversation :"
-    plot_config_path = "configs/plot_config_3.json"
+    plot_config_path = "configs/plot_config_DM.json"
     plot_live = True
-    module_order = [
-        "Microphone",
-        "VAD",
-        "DialogueManager",
-        "WhisperASR",
-        "LLM",
-        "TTS",
-        "Speaker",
-    ]
     prompt_format_config = "configs/prompt_format_config.json"
     context_size = 2000
 
@@ -215,21 +257,17 @@ def main_DM():
             # ],
         )
     ]
-    # filters = []
     # configurate logger
+    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
     terminal_logger, _ = retico_core.log_utils.configurate_logger(
         log_folder, filters=filters
     )
-
-    # configurate logger
-    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
 
     # configure plot
     configurate_plot(
         is_plot_live=plot_live,
         refreshing_time=1,
         plot_config_path=plot_config_path,
-        module_order=module_order,
         window_duration=30,
     )
 
@@ -263,31 +301,13 @@ def main_DM():
     dm.add_repeat_policy()
     dm.add_soft_interruption_policy()
     dm.add_continue_policy()
-    dm.add_backchannel_policy()
-
-    # asr = WhisperASRInterruptionModule(
-    #     device=device,
-    #     printing=printing,
-    #     full_sentences=True,
-    #     input_framerate=rate,
-    # )
+    # dm.add_backchannel_policy()
 
     asr = AsrDmModule(
         device=device,
         full_sentences=True,
         input_framerate=rate,
     )
-
-    # llm = LlamaCppMemoryIncrementalInterruptionModule(
-    #     model_path,
-    #     None,
-    #     None,
-    #     None,
-    #     system_prompt,
-    #     printing=printing,
-    #     device=device,
-    #     context_size=context_size,
-    # )
 
     llm = LlmDmModule(
         model_path,
@@ -298,14 +318,6 @@ def main_DM():
         device=device,
     )
 
-    # tts = CoquiTTSInterruptionModule(
-    #     language="en",
-    #     model=tts_model,
-    #     printing=printing,
-    #     frame_duration=tts_frame_length,
-    #     device=device,
-    # )
-
     tts = TtsDmModule(
         language="en",
         model=tts_model,
@@ -314,7 +326,7 @@ def main_DM():
         device=device,
     )
 
-    speaker = SpeakerInterruptionModule(
+    speaker = SpeakerDmModule(
         rate=tts_model_samplerate,
     )
 
@@ -351,7 +363,6 @@ def main_DM():
     finally:
         plot_once(
             plot_config_path=plot_config_path,
-            module_order=module_order,
         )
 
 
@@ -360,5 +371,7 @@ import numpy as np
 if __name__ == "__main__":
     # main_simple()
     main_DM()
+    # test_cuda()
 
     # plot_once(plot_config_path="configs/plot_config_simple.json")
+    # plot_once(plot_config_path="configs/plot_config_DM.json")

@@ -53,7 +53,7 @@ from retico_conversational_agent.additional_IUs import (
     VADIU,
     SpeakerAlignementIU,
 )
-from whisper_asr_interruption import SpeechRecognitionTurnIU
+from retico_conversational_agent.ASR_DM import SpeechRecognitionTurnIU
 
 from transitions import Machine
 
