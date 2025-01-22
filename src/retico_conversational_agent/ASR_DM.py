@@ -30,23 +30,12 @@ from faster_whisper import WhisperModel
 
 import retico_core
 from retico_core.log_utils import log_exception
+
 from retico_conversational_agent.utils import device_definition
-from retico_conversational_agent.additional_IUs import DMIU
+from retico_conversational_agent.additional_IUs import DMIU, SpeechRecognitionTurnIU
 
 transformers.logging.set_verbosity_error()
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-
-class SpeechRecognitionTurnIU(retico_core.text.SpeechRecognitionIU):
-    """Same IU as SpeechRecognition, but enhanced with turn_id."""
-
-    @staticmethod
-    def type():
-        return "SpeechRecognitionTurn IU"
-
-    def __init__(self, turn_id=None, **kwargs):
-        super().__init__(**kwargs)
-        self.turn_id = turn_id
 
 
 class AsrDmModule(retico_core.AbstractModule):

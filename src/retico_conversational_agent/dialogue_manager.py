@@ -44,21 +44,19 @@ import time
 import numpy as np
 import pydub
 import webrtcvad
+from transitions import Machine
 
 import retico_core
 from retico_core.audio import AudioIU
+
+from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.additional_IUs import (
     VADTurnAudioIU,
     DMIU,
     VADIU,
     SpeakerAlignementIU,
+    SpeechRecognitionTurnIU
 )
-from retico_conversational_agent.ASR_DM import SpeechRecognitionTurnIU
-
-from transitions import Machine
-
-from retico_conversational_agent.dialogue_history import DialogueHistory
-
 
 class DialogueManagerModule(retico_core.AbstractModule):
     """Module that plays a central role in the dialogue system because it centralizes a lot of information to be able to take complex decisions at the dialogue level.

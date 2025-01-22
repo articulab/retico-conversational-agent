@@ -32,8 +32,9 @@ import numpy as np
 from TTS.api import TTS
 
 import retico_core
-from retico_conversational_agent.utils import device_definition
 from retico_core.log_utils import log_exception
+
+from retico_conversational_agent.utils import device_definition
 from retico_conversational_agent.additional_IUs import (
     BackchannelIU,
     TurnTextIU,

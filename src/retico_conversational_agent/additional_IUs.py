@@ -7,6 +7,16 @@ Additional Incremental Unit classes used in Simple Retico Agent.
 
 import retico_core
 
+class SpeechRecognitionTurnIU(retico_core.text.SpeechRecognitionIU):
+    """Same IU as SpeechRecognition, but enhanced with turn_id."""
+
+    @staticmethod
+    def type():
+        return "SpeechRecognitionTurn IU"
+
+    def __init__(self, turn_id=None, **kwargs):
+        super().__init__(**kwargs)
+        self.turn_id = turn_id
 
 class TextFinalIU(retico_core.text.TextIU):
     """TextIU with an additional final attribute."""

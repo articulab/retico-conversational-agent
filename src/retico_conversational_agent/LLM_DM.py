@@ -67,6 +67,8 @@ from llama_cpp import Llama
 import retico_core
 from retico_core.text import SpeechRecognitionIU
 from retico_core.log_utils import log_exception
+
+from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.utils import device_definition
 from retico_conversational_agent.additional_IUs import (
     VADTurnAudioIU,
@@ -75,7 +77,7 @@ from retico_conversational_agent.additional_IUs import (
     DMIU,
     SpeakerAlignementIU,
 )
-from retico_conversational_agent.dialogue_history import DialogueHistory
+
 
 
 class LlmDmModule(retico_core.AbstractModule):

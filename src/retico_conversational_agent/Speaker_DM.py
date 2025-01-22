@@ -28,6 +28,7 @@ import pyaudio
 
 import retico_core
 import retico_core.abstract
+
 from retico_conversational_agent.additional_IUs import (
     BackchannelIU,
     VADTurnAudioIU,

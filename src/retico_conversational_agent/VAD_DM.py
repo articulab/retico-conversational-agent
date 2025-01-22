@@ -25,6 +25,7 @@ import webrtcvad
 
 import retico_core
 from retico_core import audio
+
 from retico_conversational_agent.additional_IUs import VADIU, SpeakerAlignementIU
 
 
