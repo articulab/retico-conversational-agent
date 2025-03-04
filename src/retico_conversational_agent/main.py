@@ -36,7 +36,7 @@ from retico_conversational_agent.additional_IUs import (
 )
 
 
-from retico_amq.amq import AMQReader, AMQWriter, AMQBridge
+from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
 
 
 def test_cuda(module_names=["llm"]):
@@ -407,8 +407,8 @@ def main_DM_CLEPS_remote():
     
     bridge_dm = AMQBridge([], destination_cleps_dm_out)
     bridge_tts = AMQBridge([], destination_cleps_tts_out)
-    aw = AMQWriter(ip=ip, port=port, print=printing)
-    ar = AMQReader(ip=ip, port=port, print=printing)
+    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
+    ar = AMQReaderBytes(ip=ip, port=port, print=printing)
     ar.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
     ar.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
 
@@ -494,8 +494,8 @@ def main_DM_CLEPS_local():
     
     bridge_mic = AMQBridge([], destination_local_mic_out)
     bridge_spk = AMQBridge([], destination_local_spk_out)
-    aw = AMQWriter(ip=ip, port=port, print=printing)
-    ar = AMQReader(ip=ip, port=port, print=printing)
+    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
+    ar = AMQReaderBytes(ip=ip, port=port, print=printing)
     ar.add(destination=destination_cleps_dm_out, target_iu_type=DMIU)
     ar.add(destination=destination_cleps_tts_out, target_iu_type=TextAlignedAudioIU)
 
