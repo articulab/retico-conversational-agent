@@ -194,6 +194,7 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
+                [("module", ["Speaker DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -303,7 +304,8 @@ def main_DM():
         plot_once(
             plot_config_path=plot_config_path,
         )
-        
+
+
 def main_DM_CLEPS_remote():
     # parameters definition
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -322,7 +324,7 @@ def main_DM_CLEPS_remote():
     plot_live = True
     prompt_format_config = "configs/prompt_format_config.json"
     context_size = 2000
-    
+
     # AMQ parameters
     destination_local_mic_out = "/topic/local_mic_out"
     destination_local_spk_out = "/topic/local_spk_out"
@@ -338,7 +340,9 @@ def main_DM_CLEPS_remote():
             filter_cases,
             cases=[
                 [("debug", [True])],
+                [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
+                [("module", ["Speaker DM Module"])],
                 [("level", ["warning", "error"])],
             ],
             # cases=[
@@ -404,7 +408,7 @@ def main_DM_CLEPS_remote():
         frame_duration=tts_frame_length,
         device=device,
     )
-    
+
     bridge_dm = AMQBridge([], destination_cleps_dm_out)
     bridge_tts = AMQBridge([], destination_cleps_tts_out)
     aw = AMQWriterBytes(ip=ip, port=port, print=printing)
@@ -441,6 +445,7 @@ def main_DM_CLEPS_remote():
             plot_config_path=plot_config_path,
         )
 
+
 def main_DM_CLEPS_local():
     # parameters definition
     printing = False
@@ -448,7 +453,7 @@ def main_DM_CLEPS_local():
     tts_model_samplerate = 48000
     plot_config_path = "configs/plot_config_DM.json"
     plot_live = True
-    
+
     # AMQ parameters
     destination_local_mic_out = "/topic/local_mic_out"
     destination_local_spk_out = "/topic/local_spk_out"
@@ -464,7 +469,10 @@ def main_DM_CLEPS_local():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                # [("debug", [True]), ("module", ["DialogueManager Module"])],
+                [("module", ["Speaker DM Module"])],
+                [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [SpeakerAlignementIU, "SpeakerAlignementIU"])],
+                [("module", ["AMQReaderBytes Module"]), ("iu_type", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
+                [("module", ["AMQReaderBytes Module"]), ("self_rate", 48000)],
                 [("level", ["warning", "error"])],
             ],
             # cases=[
@@ -491,7 +499,7 @@ def main_DM_CLEPS_local():
     speaker = SpeakerDmModule(
         rate=tts_model_samplerate,
     )
-    
+
     bridge_mic = AMQBridge([], destination_local_mic_out)
     bridge_spk = AMQBridge([], destination_local_spk_out)
     aw = AMQWriterBytes(ip=ip, port=port, print=printing)
@@ -520,13 +528,18 @@ def main_DM_CLEPS_local():
             plot_config_path=plot_config_path,
         )
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("simple_example")
     parser.add_argument(
         "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
     )
     parser.add_argument(
-        "--with_cleps", "-c", help="Set to local or remote to run the system in mutliple parts for cleps support.", type=str, choices=["local", "remote"]
+        "--with_cleps",
+        "-c",
+        help="Set to local or remote to run the system in mutliple parts for cleps support.",
+        type=str,
+        choices=["local", "remote"],
     )
     args = parser.parse_args()
     print(args)
@@ -538,7 +551,7 @@ if __name__ == "__main__":
                 main_DM_CLEPS_local()
             elif args.with_cleps == "remote":
                 main_DM_CLEPS_remote()
-            else : 
+            else:
                 print("with_cleps argument set to something else than remote or local.")
         else:
             main_DM()
