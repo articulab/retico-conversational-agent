@@ -7,3 +7,4 @@ simple_retico_agent.egg-info
 retico_conversational_agent.egg-info
 build/
 _build/
+audios/

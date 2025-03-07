@@ -263,7 +263,7 @@ class SpeakerDmModule(retico_core.AbstractModule):
         iu = self.audio_iu_buffer.pop(0)
         # if it is the last IU from TTS for this agent turn, which corresponds to an agent EOT.
         if hasattr(iu, "final") and iu.final:
-            self.terminal_logger.info("agent_EOT")
+            self.terminal_logger.info("agent_EOT", debug=True)
             self.file_logger.info("EOT")
             output_iu = self.create_iu(
                 grounded_word=iu.grounded_word,
@@ -303,7 +303,9 @@ class SpeakerDmModule(retico_core.AbstractModule):
                 self.append(um)
 
             data = bytes(iu.raw_audio)
-            self.terminal_logger.info("output_audio", self_rate=self.rate, iu_rate=iu.rate, data_len=len(data))
+
+            self.terminal_logger.info("output_audio", debug=True)
+            # self.terminal_logger.info("output_audio", self_rate=self.rate, iu_rate=iu.rate, data_len=len(data))
             self.file_logger.info("output_audio")
 
             self.latest_processed_iu = iu

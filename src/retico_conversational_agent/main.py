@@ -194,7 +194,7 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                [("module", ["Speaker DM Module"])],
+                # [("module", ["Speaker DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -340,9 +340,9 @@ def main_DM_CLEPS_remote():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
-                # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("module", ["Speaker DM Module"])],
+                # [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
+                # # [("debug", [True]), ("module", ["DialogueManager Module"])],
+                # [("module", ["Speaker DM Module"])],
                 [("level", ["warning", "error"])],
             ],
             # cases=[
@@ -469,10 +469,10 @@ def main_DM_CLEPS_local():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                [("module", ["Speaker DM Module"])],
-                [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [SpeakerAlignementIU, "SpeakerAlignementIU"])],
-                [("module", ["AMQReaderBytes Module"]), ("iu_type", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
-                [("module", ["AMQReaderBytes Module"]), ("self_rate", 48000)],
+                # [("module", ["Speaker DM Module"]), ("message", ["output_audio", "agent_EOT"])],
+                # [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [SpeakerAlignementIU, "SpeakerAlignementIU"])],
+                # [("module", ["AMQReaderBytes Module"]), ("iu_type", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
+                # [("module", ["AMQReaderBytes Module"]), ("self_rate", 48000)],
                 [("level", ["warning", "error"])],
             ],
             # cases=[
