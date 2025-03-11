@@ -296,6 +296,6 @@ if __name__ == "__main__":
     if args.cuda_test is not None:
         test_cuda(args.cuda_test)
     else:
-        # main_DM()
-        pass
+        main_DM()
+        # pass
     # plot_once(plot_config_path="configs/plot_config_DM.json")
