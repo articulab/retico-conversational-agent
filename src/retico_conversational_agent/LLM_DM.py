@@ -20,16 +20,16 @@ maintain a consistent dialogue. Update the dialogue history so that it
 doesn't exceed a certain threshold of token size. Put the maximum number
 of previous turns in the prompt at each new system sentence generation.
 The module stops its generation if it receives the information that the
-user started talking (user barge-in/interruption of agent turn). The 
+user started talking (user barge-in/interruption of agent turn). The
 interruption information is recognized by an DMIU with a parameter
 action="hard_interruption". After an interruption, it aligns the agent
 interrupted sentence in dialogue history with the last word spoken by
 the agent (these informations are recognized when a TextAlignedAudioIU
 with parameter final = False is received after an interruption).
-A DMIU "soft_interruption" is also used to prevent from stopping the 
+A DMIU "soft_interruption" is also used to prevent from stopping the
 generation if the user is only backchanneling : a soft_interruption is
 first called when the user starts talking during an agent turn, then if
-he continues to speak for a duration greater than a threshold, a 
+he continues to speak for a duration greater than a threshold, a
 "hard_interruption" is called.
 
 The llama-cpp-python library is used to speed up the LLM inference
@@ -39,14 +39,14 @@ Inputs : SpeechRecognitionIU, VADTurnAudioIU, TextAlignedAudioIU
 
 Outputs : TurnTextIU
 
-example of the prompt template : 
+example of the prompt template :
 prompt = "[INST] <<SYS>>
-This is a spoken dialog scenario between a teacher and a 8 years old 
+This is a spoken dialog scenario between a teacher and a 8 years old
 child student. The teacher is teaching mathematics to the child student.
 As the student is a child, the teacher needs to stay gentle all the
 time. Please provide the next valid response for the following
 conversation. You play the role of a teacher. Here is the beginning of
-the conversation : 
+the conversation :
 <</SYS>>
 
 Child : Hello !
@@ -77,7 +77,6 @@ from retico_conversational_agent.additional_IUs import (
     DMIU,
     SpeakerAlignementIU,
 )
-
 
 
 class LlmDmModule(retico_core.AbstractModule):
@@ -208,7 +207,6 @@ class LlmDmModule(retico_core.AbstractModule):
         self.verbose = verbose
 
         # general
-        self.time_logs_buffer = []
         self.thread_active = False
         self.full_sentence = False
         self.interruption = False
@@ -232,6 +230,7 @@ class LlmDmModule(retico_core.AbstractModule):
         self.last_turn_agent_sentence = None
         self.last_turn_agent_sentence_nb_token = None
         self.last_turn_agent_sentence_turn_id = None
+        self.last_turn_last_iu = None
 
     #######
     # LLM MODULE
@@ -241,12 +240,8 @@ class LlmDmModule(retico_core.AbstractModule):
         """Calculates the stopping token patterns using the instantiated model
         tokenizer."""
         self.stop_token_ids.append(self.model.token_eos())
-        self.stop_token_text_patterns, self.role_token_text_patterns = (
-            self.dialogue_history.get_stop_patterns()
-        )
-        self.max_role_pattern_length = max(
-            [len(p) for p in self.role_token_text_patterns]
-        )
+        self.stop_token_text_patterns, self.role_token_text_patterns = self.dialogue_history.get_stop_patterns()
+        self.max_role_pattern_length = max([len(p) for p in self.role_token_text_patterns])
         for pat in self.stop_token_text_patterns:
             self.stop_token_patterns.append(self.model.tokenize(pat, add_bos=False))
         for pat in self.role_token_text_patterns:
@@ -341,9 +336,7 @@ class LlmDmModule(retico_core.AbstractModule):
         # check if the sentence we want to align has been stored in self.last_turn_agent_sentence
         if self.last_turn_agent_sentence_turn_id:
             if self.last_turn_agent_sentence_turn_id == iu.turn_id:
-                self.interruption_alignment_new_agent_sentence(
-                    self.last_turn_agent_sentence.decode("utf-8")
-                )
+                self.interruption_alignment_new_agent_sentence(self.last_turn_agent_sentence.decode("utf-8"))
 
     def remove_stop_patterns(self, sentence, pattern_id):
         """Function called when a stopping token pattern has been encountered
@@ -569,9 +562,7 @@ class LlmDmModule(retico_core.AbstractModule):
 
             # Check if the sentence generation should be stopped (interruption or EOT)
             is_stop_token = self.is_stop_token(token)
-            is_stop_pattern, stop_pattern, pattern_id = self.is_stop_pattern(
-                last_sentence
-            )
+            is_stop_pattern, stop_pattern, pattern_id = self.is_stop_pattern(last_sentence)
             if self.interruption:
                 self.which_stop_criteria = "interruption"
             elif is_stop_pattern:
@@ -653,9 +644,7 @@ class LlmDmModule(retico_core.AbstractModule):
 
         # REVOKE if role patterns
         if role_pattern is not None:
-            for id, token in enumerate(
-                role_pattern
-            ):  # take all IUs corresponding to stop pattern
+            for id, token in enumerate(role_pattern):  # take all IUs corresponding to stop pattern
                 iu = self.current_output.pop(
                     -1
                 )  # the IUs corresponding to the stop pattern are the last n ones where n=len(stop_pattern).
@@ -689,9 +678,7 @@ class LlmDmModule(retico_core.AbstractModule):
         prompt, prompt_tokens = self.prepare_dialogue_history()
         last_processed_iu = self.current_input[-1]
 
-        agent_sentence, agent_sentence_nb_tokens = self.generate_next_sentence(
-            prompt, prompt_tokens
-        )
+        agent_sentence, agent_sentence_nb_tokens = self.generate_next_sentence(prompt, prompt_tokens)
 
         next_um = retico_core.UpdateMessage()
 
@@ -710,9 +697,7 @@ class LlmDmModule(retico_core.AbstractModule):
         elif self.which_stop_criteria.startswith("stop_pattern"):
             # remove from agent sentence every word contained in the stop pattern encountered
             pattern_id = int(self.which_stop_criteria.split("_")[-1])
-            agent_sentence_reduced, nb_token_removed = self.remove_stop_patterns(
-                agent_sentence, pattern_id
-            )
+            agent_sentence_reduced, nb_token_removed = self.remove_stop_patterns(agent_sentence, pattern_id)
 
             # REVOKE every word contained in the stop pattern encountered
             for i in range(nb_token_removed - 1):
@@ -733,9 +718,7 @@ class LlmDmModule(retico_core.AbstractModule):
             )
 
             self.last_turn_agent_sentence = agent_sentence_reduced
-            self.last_turn_agent_sentence_nb_token = (
-                agent_sentence_nb_tokens - nb_token_removed
-            )
+            self.last_turn_agent_sentence_nb_token = agent_sentence_nb_tokens - nb_token_removed
             self.last_turn_agent_sentence_turn_id = last_processed_iu.turn_id
 
         elif self.which_stop_criteria == "stop_token":
@@ -756,9 +739,7 @@ class LlmDmModule(retico_core.AbstractModule):
             self.last_turn_agent_sentence_turn_id = last_processed_iu.turn_id
 
         else:
-            raise NotImplementedError(
-                "this which_stop_criteria has not been implemented"
-            )
+            raise NotImplementedError("this which_stop_criteria has not been implemented")
 
         print(f"LLM:\n{self.last_turn_agent_sentence}")
 
@@ -785,7 +766,7 @@ class LlmDmModule(retico_core.AbstractModule):
         if not update_message:
             return None
         msg = []
-        last_turn_last_iu = None
+        # self.last_turn_last_iu = None
         for iu, ut in update_message:
             if isinstance(iu, SpeechRecognitionIU):
                 if ut == retico_core.UpdateType.ADD:
@@ -810,11 +791,10 @@ class LlmDmModule(retico_core.AbstractModule):
                             self.interruption = True  # test this
                             # we would have to do something much more simple, just stop generation and clear current_output, no alignement or nothing
             elif isinstance(iu, SpeakerAlignementIU):
+                self.terminal_logger.info("LLM receives SpeakerAlignementIU", debug=True)
                 if ut == retico_core.UpdateType.ADD:
                     if iu.event == "interruption":
-                        self.terminal_logger.info(
-                            "LLM alignement interruption", debug=True
-                        )
+                        self.terminal_logger.info("LLM alignement interruption", debug=True)
                         self.interruption_alignment_last_agent_sentence(iu)
                     if iu.event == "agent_EOT":
                         self.terminal_logger.info(
@@ -823,18 +803,21 @@ class LlmDmModule(retico_core.AbstractModule):
                             turn_id=iu.turn_id,
                             grounded_word=iu.grounded_word,
                         )
-                        self.terminal_logger.info(
-                            "agent EOT last iu",
-                            debug=True,
-                            turn_id=last_turn_last_iu.turn_id,
-                            grounded_word=last_turn_last_iu.grounded_word,
-                        )
-                        self.new_agent_sentence(
-                            self.last_turn_agent_sentence.decode("utf-8"),
-                            last_turn_last_iu.turn_id,
-                        )
+                        try:
+                            self.terminal_logger.info(
+                                "agent EOT last iu",
+                                debug=True,
+                                turn_id=self.last_turn_last_iu.turn_id,
+                                grounded_word=self.last_turn_last_iu.grounded_word,
+                            )
+                            self.new_agent_sentence(
+                                self.last_turn_agent_sentence.decode("utf-8"),
+                                self.last_turn_last_iu.turn_id,
+                            )
+                        except Exception:
+                            self.terminal_logger.exception()
                     if iu.event == "ius_from_last_turn":
-                        last_turn_last_iu = iu
+                        self.last_turn_last_iu = iu
                 elif ut == retico_core.UpdateType.REVOKE:
                     continue
                 elif ut == retico_core.UpdateType.COMMIT:

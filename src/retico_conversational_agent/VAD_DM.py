@@ -145,12 +145,16 @@ class VadModule(retico_core.AbstractModule):
                         self.VA_agent = True
             elif isinstance(iu, audio.AudioIU):
                 if ut == retico_core.UpdateType.ADD:
+                    # self.terminal_logger.info(
+                    #     "rates", input=self.input_framerate, iu=iu.rate, target=self.target_framerate, debug=True
+                    # )
                     if self.input_framerate != iu.rate:
                         raise ValueError(
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
                     raw_audio = self.resample_audio(iu.raw_audio)
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
+                    # self.terminal_logger.info("received audio IU", VA_user=VA_user, debug=True)
                     output_iu = self.create_iu(
                         grounded_in=iu,
                         raw_audio=raw_audio,
@@ -160,9 +164,7 @@ class VadModule(retico_core.AbstractModule):
                         va_user=VA_user,
                         va_agent=self.VA_agent,
                     )
-                    um = retico_core.UpdateMessage.from_iu(
-                        output_iu, retico_core.UpdateType.ADD
-                    )
+                    um = retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
                     self.append(um)
 
                     # something for logging

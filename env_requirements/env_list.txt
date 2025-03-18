@@ -107,3 +107,6 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 -> not working, LLM on CPU
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
 -> not working, LLM on CPU
+
+
+pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124
