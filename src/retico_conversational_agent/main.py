@@ -332,6 +332,8 @@ def main_DM_CLEPS_remote():
     destination_cleps_tts_out = "/topic/cleps_tts_out"
     ip = "localhost"
     # ip = "192.168.76.242"
+    # ip = "128.93.67.17"
+    print(f"IP = {ip}")
     port = "61613"
 
     # filters
