@@ -11,7 +11,7 @@ import wave
 import scipy.io.wavfile as wav
 
 # import keyboard
-from pynput.keyboard import Key, Listener
+# from pynput.keyboard import Key, Listener
 
 
 class WozMicrophoneModule(retico_core.AbstractProducingModule):
@@ -125,7 +125,7 @@ class WozMicrophoneModule(retico_core.AbstractProducingModule):
     def prepare_run(self):
         super().prepare_run()
         self._run_thread_active = True
-        threading.Thread(target=self.key_listener, daemon=True).start()
+        # threading.Thread(target=self.key_listener, daemon=True).start()
         # threading.Thread(
         #     target=self.thread3,
         #     daemon=True,
@@ -142,17 +142,17 @@ class WozMicrophoneModule(retico_core.AbstractProducingModule):
         um.add_ius(iu_list=self.silence_ius)
         self.append(um)
 
-    def key_listener(self):
-        listener = Listener(on_press=self.on_press)
-        listener.start()
+    # def key_listener(self):
+    #     listener = Listener(on_press=self.on_press)
+    #     listener.start()
 
-    def on_press(self, key):
-        if key == Key.esc:  # Stop on 'Esc' key
-            print("ESC pressed, exiting...")
-            return False
-        elif key == Key.enter or (hasattr(key, "char") and key.char == "q"):
-            print(f"Key {key} pressed! Sending audio...")
-            self.send_audio()
+    # def on_press(self, key):
+    #     if key == Key.esc:  # Stop on 'Esc' key
+    #         print("ESC pressed, exiting...")
+    #         return False
+    #     elif key == Key.enter or (hasattr(key, "char") and key.char == "q"):
+    #         print(f"Key {key} pressed! Sending audio...")
+    #         self.send_audio()
 
     # def on_key_event(self, event):
     #     if event.name in ["q", "enter"]:
