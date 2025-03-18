@@ -8,3 +8,4 @@ retico_conversational_agent.egg-info
 build/
 _build/
 audios/
+*.whl

@@ -419,6 +419,14 @@ class DialogueManagerModule(retico_core.AbstractModule):
             return False
         _n_audio_chunks = int(_n_audio_chunks)
         speech_counter = sum(1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu))
+        # self.terminal_logger.info(
+        #     "speech counter ",
+        #     debug=True,
+        #     cpt=speech_counter,
+        #     len=_n_audio_chunks,
+        #     percent=100 * speech_counter / _n_audio_chunks,
+        #     threshold=threshold,
+        # )
         if speech_counter >= int(threshold * _n_audio_chunks):
             return True
         return False
@@ -762,6 +770,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
 
             elif self.dialogue_state == "silence_after_agent":
                 user_BOT = self.recognize_user_bot()
+                # self.terminal_logger.info("recognize_user_bot", debug=True, user_BOT=user_BOT)
                 agent_BOT = self.recognize_agent_bot()
                 if user_BOT:
                     if agent_BOT:

@@ -1,6 +1,10 @@
 import os
 import time
 
+from retico_conversational_agent.WOZ_microphone import WozMicrophoneModule
+from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModul2
+from retico_conversational_agent.microphone_ptt import MicrophonePTTModule
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from functools import partial
 import torch
@@ -194,7 +198,7 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                # [("module", ["Speaker DM Module"])],
+                # [("module", ["VAD DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -226,7 +230,9 @@ def main_DM():
     # create modules
     # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
     # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
-    mic = audio.MicrophoneModule()
+    # mic = audio.MicrophoneModule()
+    # mic = WozMicrophoneModule(frame_length=frame_length)
+    mic = WOZMicrophoneModul2(frame_length=frame_length)
 
     vad = VadModule(
         input_framerate=rate,
@@ -529,7 +535,86 @@ def main_DM_CLEPS_local():
         )
 
 
+def test_wozmic():
+    # parameters definition
+    printing = False
+    log_folder = "logs/run"
+    tts_model_samplerate = 48000
+    plot_config_path = "configs/plot_config_DM.json"
+    plot_live = False
+    rate = 0.02
+    # parameters definition
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    printing = False
+    log_folder = "logs/run"
+    frame_length = 0.02
+    # frame_length = 0.1
+    tts_frame_length = 0.2
+    rate = 16000
+    plot_config_path = "configs/plot_config_DM.json"
+
+    # filters
+    filters = [
+        partial(
+            filter_cases,
+            cases=[
+                [("debug", [True])],
+                [("level", ["warning", "error"])],
+                [("module", ["Speaker DM Module", "WozMicrophone Module"])],
+            ],
+        )
+    ]
+    # configurate logger
+    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+
+    # configure plot
+    configurate_plot(
+        is_plot_live=plot_live,
+        refreshing_time=1,
+        plot_config_path=plot_config_path,
+        window_duration=30,
+    )
+
+    # this works
+    # tts params
+    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
+    # speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=tts_frame_length)
+
+    # tts params
+    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
+    # speaker = SpeakerDmModule(rate=tts_model_samplerate, printing=printing, frame_length=tts_frame_length)
+
+    # mic params
+    mic = WozMicrophoneModule(frame_length=frame_length)
+    speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=frame_length)
+
+    # create modules
+    # vad = VadModule(
+    #     input_framerate=rate,
+    #     frame_length=frame_length,
+    # )
+
+    mic.subscribe(speaker)
+    # vad.subscribe(mic)
+
+    # running system
+    try:
+        network.run(mic)
+        print("Dialog system running until ENTER key is pressed")
+        input()
+        network.stop(mic)
+    except Exception:
+        terminal_logger.exception("exception in main")
+        network.stop(mic)
+    finally:
+        plot_once(
+            plot_config_path=plot_config_path,
+        )
+
+
 if __name__ == "__main__":
+    # test_wozmic()
+
     parser = argparse.ArgumentParser("simple_example")
     parser.add_argument(
         "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
@@ -555,4 +640,4 @@ if __name__ == "__main__":
                 print("with_cleps argument set to something else than remote or local.")
         else:
             main_DM()
-    # plot_once(plot_config_path="configs/plot_config_DM.json")
+    plot_once(plot_config_path="configs/plot_config_DM.json")

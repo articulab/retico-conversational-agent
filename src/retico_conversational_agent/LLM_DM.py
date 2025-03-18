@@ -207,7 +207,6 @@ class LlmDmModule(retico_core.AbstractModule):
         self.verbose = verbose
 
         # general
-        self.time_logs_buffer = []
         self.thread_active = False
         self.full_sentence = False
         self.interruption = False
