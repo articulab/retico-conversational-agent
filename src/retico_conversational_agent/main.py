@@ -418,9 +418,13 @@ def main_DM_CLEPS_remote():
     bridge_dm = AMQBridge([], destination_cleps_dm_out)
     bridge_tts = AMQBridge([], destination_cleps_tts_out)
     aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    ar = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
-    ar.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
+    # ar = AMQReaderBytes(ip=ip, port=port, print=printing)
+    # ar.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
+    # ar.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
+    ar_mic_out = AMQReaderBytes(ip=ip, port=port, print=printing)
+    ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
+    ar_spk_out = AMQReaderBytes(ip=ip, port=port, print=printing)
+    ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
 
     # create network
     vad.subscribe(dm)
@@ -433,9 +437,13 @@ def main_DM_CLEPS_remote():
     dm.subscribe(bridge_dm)
     bridge_tts.subscribe(aw)
     bridge_dm.subscribe(aw)
-    ar.subscribe(vad)
-    ar.subscribe(llm)
-    ar.subscribe(dm)
+    # ar.subscribe(vad)
+    # ar.subscribe(llm)
+    # ar.subscribe(dm)
+    ar_mic_out.subscribe(vad)
+    ar_spk_out.subscribe(vad)
+    ar_spk_out.subscribe(llm)
+    ar_spk_out.subscribe(dm)
 
     # running system
     try:
@@ -457,6 +465,7 @@ def main_DM_CLEPS_local():
     printing = False
     log_folder = "logs/run"
     tts_model_samplerate = 48000
+    frame_length = 0.02
     plot_config_path = "configs/plot_config_DM.json"
     plot_live = True
 
@@ -500,7 +509,8 @@ def main_DM_CLEPS_local():
     )
 
     # create modules
-    mic = audio.MicrophoneModule()
+    # mic = audio.MicrophoneModule()
+    mic = WOZMicrophoneModul2(frame_length=frame_length)
 
     speaker = SpeakerDmModule(
         rate=tts_model_samplerate,

@@ -50,24 +50,21 @@ class WOZMicrophoneModul2(MicrophoneModule):
     def setup(self, **kwargs):
         super().setup(**kwargs)
         # load data
-        frame_rate, data = wav.read(self.file)
-        audio_data = data
-        n_channels = 1 if len(data.shape) == 1 else data.shape[1]
-        # sample_width = data.dtype.itemsize * 8
-        sample_width = data.dtype.itemsize
-        self.terminal_logger.info("sample_width", sample_width=sample_width, debug=True)
-        sample_width = 2
+        # frame_rate, data = wav.read(self.file)
+        # audio_data = data
+        # n_channels = 1 if len(data.shape) == 1 else data.shape[1]
+        # # sample_width = data.dtype.itemsize * 8
+        # sample_width = data.dtype.itemsize
+        # self.terminal_logger.info("sample_width", sample_width=sample_width, debug=True)
+        # sample_width = 2
 
-        # wf = wave.open(self.file, "rb")
-        # frame_rate = wf.getframerate()
-        # n_channels = wf.getnchannels()
-        # sample_width = wf.getsampwidth()
-        # audio_data = wf.readframes(1000000)
-        # # audio_data = wf.readframes(10000)
-        # wf.close()
-
-        # 12:53:05.57 [info     ] WozMicrophone load sound
-        # chunk_size= | 320 |  debug= ( True )  frame_rate= | 16000 |  n_channels= | 1 |  rate= | 16000 |  sample_width= | 2 |  total_time= 1.82
+        wf = wave.open(self.file, "rb")
+        frame_rate = wf.getframerate()
+        n_channels = wf.getnchannels()
+        sample_width = wf.getsampwidth()
+        audio_data = wf.readframes(1000000)
+        # audio_data = wf.readframes(10000)
+        wf.close()
 
         # calculate IUs
         rate = frame_rate * n_channels
