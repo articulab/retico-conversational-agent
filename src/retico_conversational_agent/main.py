@@ -327,7 +327,7 @@ def main_DM_CLEPS_remote():
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
         You play the role of a teacher. Here is the beginning of the conversation :"
     plot_config_path = "configs/plot_config_DM.json"
-    plot_live = True
+    plot_live = False
     prompt_format_config = "configs/prompt_format_config.json"
     context_size = 2000
 
