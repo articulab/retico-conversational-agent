@@ -658,6 +658,7 @@ class LlmDmModule(retico_core.AbstractModule):
                 self.commit(iu)
                 next_um.add_iu(iu, retico_core.UpdateType.COMMIT)
             self.file_logger.info("send_clause")
+            self.terminal_logger.info("send_clause", debug=True)
             self.current_output = []
         self.append(next_um)
 
