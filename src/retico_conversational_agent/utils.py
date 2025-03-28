@@ -1,3 +1,4 @@
+import numpy as np
 import pydub
 import torch
 
@@ -76,10 +77,11 @@ def resample_audio_file(src: str, dst: str, outrate: int = 16000):
 
     try:
         sf.write(dst, resampled_audio, outrate)
-    except :
+    except:
         print("Failed to write wav")
         return False
-    
+
+
 def resample_audio(raw_audio: bytes, inrate: int, outrate: int):
     """Resample the audio's frame_rate to correspond to outrate.
 
@@ -92,8 +94,10 @@ def resample_audio(raw_audio: bytes, inrate: int, outrate: int):
     Returns:
         bytes: resampled audio bytes
     """
-    return librosa.resample(raw_audio, orig_sr=inrate, target_sr=outrate)
-    
+    audio_np = np.frombuffer(raw_audio, dtype=np.int16).astype(np.float32) / 32768.0
+    return librosa.resample(audio_np, orig_sr=inrate, target_sr=outrate)
+
+
 def resample_audio_2(raw_audio: bytes, inrate: int, outrate: int, sample_width: int = 2, channels: int = 2):
     """Resample the audio's frame_rate to correspond to
     self.target_framerate.
