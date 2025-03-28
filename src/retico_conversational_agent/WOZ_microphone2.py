@@ -17,7 +17,7 @@ import retico_core
 from retico_core.audio import MicrophoneModule
 
 
-class WOZMicrophoneModul2(MicrophoneModule):
+class WOZMicrophoneModule_2(MicrophoneModule):
     """A modules overrides the MicrophoneModule which captures audio signal from the microphone and chunks the audio signal into AudioIUs.
     The addition of this module is the introduction of the push-to-talk capacity : the microphone's audio signal is captured only while the M key is pressed.
     """

@@ -2,7 +2,7 @@ import os
 import time
 
 from retico_conversational_agent.WOZ_microphone import WozMicrophoneModule
-from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModul2
+from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModule_2
 from retico_conversational_agent.microphone_ptt import MicrophonePTTModule
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -233,7 +233,7 @@ def main_DM():
     # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
     # mic = audio.MicrophoneModule()
     # mic = WozMicrophoneModule(frame_length=frame_length)
-    mic = WOZMicrophoneModul2(frame_length=frame_length)
+    mic = WOZMicrophoneModule_2(frame_length=frame_length)
 
     vad = VadModule(
         input_framerate=rate,
@@ -523,8 +523,8 @@ def main_DM_CLEPS_local():
     )
 
     # create modules
-    mic = audio.MicrophoneModule()
-    # mic = WOZMicrophoneModul2(frame_length=frame_length)
+    # mic = audio.MicrophoneModule()
+    mic = WOZMicrophoneModule_2(frame_length=frame_length)
 
     speaker = SpeakerDmModule(
         rate=tts_model_samplerate,
