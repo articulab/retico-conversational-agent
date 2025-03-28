@@ -132,7 +132,7 @@ class VadModule(retico_core.AbstractModule):
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
                     # raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
-                    raw_audio = self.resample_audio_2(
+                    raw_audio = resample_audio_2(
                         iu.raw_audio, iu.rate, self.target_framerate, self.sample_width, self.channels
                     )
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
