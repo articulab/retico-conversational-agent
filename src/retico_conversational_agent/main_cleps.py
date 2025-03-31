@@ -12,12 +12,12 @@ from retico_core.log_utils import (
     configurate_plot,
     plot_once,
 )
+from retico_core.audio import MicrophonePTTModule
 
 from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
+from retico_amq.utils import define_amq_network
 
-from retico_conversational_agent.WOZ_microphone import WozMicrophoneModule
-from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModul2
-from retico_conversational_agent.microphone_ptt import MicrophonePTTModule
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.VAD_DM import VadModule
 from retico_conversational_agent.ASR_DM import AsrDmModule
@@ -34,12 +34,11 @@ from retico_conversational_agent.additional_IUs import (
 )
 
 
-def main_DM_CLEPS_remote():
-    """The `main_DM_CLEPS_remote` and `main_DM_CLEPS_local` functions creates the dialog system in two parts,
-    communicating with one another through ActiveMQ. The idea is to have a
-
-    all the dialog system's modules that are supposed to run on a CLEPS and runs a dialog system that is able to
-    have a conversation with the user.
+def main_DM_remote_computing_remote():
+    """The `main_DM_remote_computing_remote` and `main_DM_remote_computing_local` functions creates the dialog system
+    in two parts, communicating with one another through ActiveMQ. The idea is to have all the dialog system's modules
+    that are supposed to run on a remote computer and runs a dialog system that is able to have a conversation with the
+    user.
 
     The dialog system is composed of different modules: - a Microphone :
     captures the user's voice - an ASR : transcribes the user's voice
@@ -91,8 +90,8 @@ def main_DM_CLEPS_remote():
     # AMQ parameters
     destination_local_mic_out = "/topic/local_mic_out"
     destination_local_spk_out = "/topic/local_spk_out"
-    destination_cleps_dm_out = "/topic/cleps_dm_out"
-    destination_cleps_tts_out = "/topic/cleps_tts_out"
+    destination_remote_dm_out = "/topic/remote_dm_out"
+    destination_remote_tts_out = "/topic/remote_tts_out"
     ip = "localhost"
     print(f"IP = {ip}")
     port = "61613"
@@ -164,14 +163,6 @@ def main_DM_CLEPS_remote():
         device=device,
     )
 
-    bridge_dm = AMQBridge([], destination_cleps_dm_out)
-    bridge_tts = AMQBridge([], destination_cleps_tts_out)
-    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    ar_mic_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
-    ar_spk_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
-
     # create network
     vad.subscribe(dm)
     dm.subscribe(asr)
@@ -179,14 +170,44 @@ def main_DM_CLEPS_remote():
     dm.subscribe(tts)
     asr.subscribe(llm)
     llm.subscribe(tts)
-    tts.subscribe(bridge_tts)
-    dm.subscribe(bridge_dm)
-    bridge_tts.subscribe(aw)
-    bridge_dm.subscribe(aw)
-    ar_mic_out.subscribe(vad)
-    ar_spk_out.subscribe(vad)
-    ar_spk_out.subscribe(llm)
-    ar_spk_out.subscribe(dm)
+
+    dict_out = [
+        {"module": dm, "destination": destination_remote_dm_out},
+        {"module": tts, "destination": destination_remote_tts_out},
+    ]
+    dict_in = [
+        {"destination": destination_local_mic_out, "iu_type": retico_core.audio.AudioIU, "subscriber_modules": [vad]},
+        {
+            "destination": destination_local_spk_out,
+            "iu_type": SpeakerAlignementIU,
+            "subscriber_modules": [vad, llm, dm],
+        },
+    ]
+    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port)
+
+    # bridge_dm = AMQBridge([], destination_remote_dm_out)
+    # bridge_tts = AMQBridge([], destination_remote_tts_out)
+    # aw = AMQWriterBytes(ip=ip, port=port, verbose=printing)
+    # ar_mic_out = AMQReaderBytes(ip=ip, port=port, verbose=printing)
+    # ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
+    # ar_spk_out = AMQReaderBytes(ip=ip, port=port, verbose=printing)
+    # ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
+
+    # # create network
+    # vad.subscribe(dm)
+    # dm.subscribe(asr)
+    # dm.subscribe(llm)
+    # dm.subscribe(tts)
+    # asr.subscribe(llm)
+    # llm.subscribe(tts)
+    # tts.subscribe(bridge_tts)
+    # dm.subscribe(bridge_dm)
+    # bridge_tts.subscribe(aw)
+    # bridge_dm.subscribe(aw)
+    # ar_mic_out.subscribe(vad)
+    # ar_spk_out.subscribe(vad)
+    # ar_spk_out.subscribe(llm)
+    # ar_spk_out.subscribe(dm)
 
     # running system
     try:
@@ -203,7 +224,7 @@ def main_DM_CLEPS_remote():
         )
 
 
-def main_DM_CLEPS_local():
+def main_DM_remote_computing_local():
     # parameters definition
     printing = False
     log_folder = "logs/run"
@@ -215,8 +236,8 @@ def main_DM_CLEPS_local():
     # AMQ parameters
     destination_local_mic_out = "/topic/local_mic_out"
     destination_local_spk_out = "/topic/local_spk_out"
-    destination_cleps_dm_out = "/topic/cleps_dm_out"
-    destination_cleps_tts_out = "/topic/cleps_tts_out"
+    destination_remote_dm_out = "/topic/remote_dm_out"
+    destination_remote_tts_out = "/topic/remote_tts_out"
     ip = "localhost"
     port = "61613"
 
@@ -243,102 +264,39 @@ def main_DM_CLEPS_local():
 
     # create modules
     # mic = audio.MicrophoneModule()
-    mic = WOZMicrophoneModul2(frame_length=frame_length)
+    mic = WOZMicrophoneModule(frame_length=frame_length)
 
     speaker = SpeakerDmModule(
         rate=tts_model_samplerate,
     )
 
-    bridge_mic = AMQBridge([], destination_local_mic_out)
-    bridge_spk = AMQBridge([], destination_local_spk_out)
-    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    ar = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar.add(destination=destination_cleps_dm_out, target_iu_type=DMIU)
-    ar.add(destination=destination_cleps_tts_out, target_iu_type=TextAlignedAudioIU)
-
-    # create network
-    mic.subscribe(bridge_mic)
-    speaker.subscribe(bridge_spk)
-    bridge_mic.subscribe(aw)
-    bridge_spk.subscribe(aw)
-    ar.subscribe(speaker)
-
-    # running system
-    try:
-        network.run(mic)
-        print("Dialog system running until ENTER key is pressed")
-        input()
-        network.stop(mic)
-    except Exception:
-        terminal_logger.exception("exception in main")
-        network.stop(mic)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
-
-
-def test_wozmic():
-    # parameters definition
-    printing = False
-    log_folder = "logs/run"
-    tts_model_samplerate = 48000
-    plot_config_path = "configs/plot_config_DM.json"
-    plot_live = False
-    rate = 0.02
-    # parameters definition
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    printing = False
-    log_folder = "logs/run"
-    frame_length = 0.02
-    # frame_length = 0.1
-    tts_frame_length = 0.2
-    rate = 16000
-    plot_config_path = "configs/plot_config_DM.json"
-
-    # filters
-    filters = [
-        partial(
-            filter_cases,
-            cases=[
-                [("debug", [True])],
-                [("level", ["warning", "error"])],
-                [("module", ["Speaker DM Module", "WozMicrophone Module"])],
-            ],
-        )
+    dict_out = [
+        {"module": mic, "destination": destination_local_mic_out},
+        {"module": speaker, "destination": destination_local_spk_out},
     ]
-    # configurate logger
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    dict_in = [
+        {"destination": destination_remote_dm_out, "iu_type": DMIU, "subscriber_modules": [speaker]},
+        {
+            "destination": destination_remote_tts_out,
+            "iu_type": TextAlignedAudioIU,
+            "subscriber_modules": [speaker],
+        },
+    ]
+    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port)
 
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
+    # bridge_mic = AMQBridge([], destination_local_mic_out)
+    # bridge_spk = AMQBridge([], destination_local_spk_out)
+    # aw = AMQWriterBytes(ip=ip, port=port, verbose=printing)
+    # ar = AMQReaderBytes(ip=ip, port=port, verbose=printing)
+    # ar.add(destination=destination_remote_dm_out, target_iu_type=DMIU)
+    # ar.add(destination=destination_remote_tts_out, target_iu_type=TextAlignedAudioIU)
 
-    # this works
-    # tts params
-    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
-    # speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=tts_frame_length)
-
-    # tts params
-    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
-    # speaker = SpeakerDmModule(rate=tts_model_samplerate, printing=printing, frame_length=tts_frame_length)
-
-    # mic params
-    mic = WozMicrophoneModule(frame_length=frame_length)
-    speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=frame_length)
-
-    # create modules
-    # vad = VadModule(
-    #     input_framerate=rate,
-    #     frame_length=frame_length,
-    # )
-
-    mic.subscribe(speaker)
-    # vad.subscribe(mic)
+    # # create network
+    # mic.subscribe(bridge_mic)
+    # speaker.subscribe(bridge_spk)
+    # bridge_mic.subscribe(aw)
+    # bridge_spk.subscribe(aw)
+    # ar.subscribe(speaker)
 
     # running system
     try:
@@ -356,31 +314,22 @@ def test_wozmic():
 
 
 if __name__ == "__main__":
-    # test_wozmic()
 
-    parser = argparse.ArgumentParser("simple_example")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
-    )
-    parser.add_argument(
-        "--with_cleps",
+        "--remote_computing",
         "-c",
-        help="Set to local or remote to run the system in mutliple parts for cleps support.",
+        help="Set to local or remote to run the system in multiple parts for remote computing (like clusters).",
         type=str,
         choices=["local", "remote"],
+        required=True,
     )
     args = parser.parse_args()
-    print(args)
-    if args.cuda_test is not None:
-        test_cuda(args.cuda_test)
-    else:
-        if args.with_cleps is not None:
-            if args.with_cleps == "local":
-                main_DM_CLEPS_local()
-            elif args.with_cleps == "remote":
-                main_DM_CLEPS_remote()
-            else:
-                print("with_cleps argument set to something else than remote or local.")
+    if args.remote_computing is not None:
+        if args.remote_computing == "local":
+            main_DM_remote_computing_local()
+        elif args.remote_computing == "remote":
+            main_DM_remote_computing_remote()
         else:
-            main_DM()
+            print("remote_computing argument set to something else than remote or local.")
     plot_once(plot_config_path="configs/plot_config_DM.json")

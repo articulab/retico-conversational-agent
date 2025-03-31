@@ -1,10 +1,6 @@
 import os
 import time
 
-from retico_conversational_agent.WOZ_microphone import WozMicrophoneModule
-from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModule_2
-from retico_conversational_agent.microphone_ptt import MicrophonePTTModule
-
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from functools import partial
 import torch
@@ -22,6 +18,9 @@ from retico_core.log_utils import (
     configurate_plot,
     plot_once,
 )
+from retico_core.audio import MicrophonePTTModule
+
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
 
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.VAD_DM import VadModule
@@ -38,7 +37,7 @@ from retico_conversational_agent.additional_IUs import (
     SpeakerAlignementIU,
     TextAlignedAudioIU,
 )
-
+from retico_conversational_agent.main_cleps import main_DM_remote_computing_remote, main_DM_remote_computing_local
 
 from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
 from retico_amq.utils import define_amq_network
@@ -233,7 +232,7 @@ def main_DM():
     # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
     # mic = audio.MicrophoneModule()
     # mic = WozMicrophoneModule(frame_length=frame_length)
-    mic = WOZMicrophoneModule_2(frame_length=frame_length)
+    mic = WOZMicrophoneModule(frame_length=frame_length)
 
     vad = VadModule(
         input_framerate=rate,
@@ -313,369 +312,29 @@ def main_DM():
         )
 
 
-def main_DM_CLEPS_remote():
-    # parameters definition
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    printing = False
-    log_folder = "logs/run"
-    frame_length = 0.02
-    tts_frame_length = 0.2
-    rate = 16000
-    tts_model = "jenny"
-    model_path = "./models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
-    system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
-        The teacher is teaching mathemathics to the child student.\
-        As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
-        You play the role of a teacher. Here is the beginning of the conversation :"
-    plot_config_path = "configs/plot_config_DM.json"
-    plot_live = False
-    prompt_format_config = "configs/prompt_format_config.json"
-    context_size = 2000
-
-    # AMQ parameters
-    destination_local_mic_out = "/topic/local_mic_out"
-    destination_local_spk_out = "/topic/local_spk_out"
-    destination_cleps_dm_out = "/topic/cleps_dm_out"
-    destination_cleps_tts_out = "/topic/cleps_tts_out"
-    ip = "localhost"
-    # ip = "192.168.76.242"
-    # ip = "128.93.67.17"
-    print(f"IP = {ip}")
-    port = "61613"
-
-    # filters
-    filters = [
-        partial(
-            filter_cases,
-            cases=[
-                [("debug", [True])],
-                # [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
-                # # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                # [("module", ["Speaker DM Module"])],
-                [("level", ["warning", "error"])],
-            ],
-            # cases=[
-            #     [("module", ["DialogueManager Module"])],
-            #     [("level", ["warning", "error"])],
-            # ],
-        )
-    ]
-    # configurate logger
-    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
-
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
-
-    dialogue_history = DialogueHistory(
-        prompt_format_config,
-        terminal_logger=terminal_logger,
-        initial_system_prompt=system_prompt,
-        context_size=context_size,
-    )
-
-    # create modules
-    vad = VadModule(
-        input_framerate=rate,
-        frame_length=frame_length,
-    )
-
-    dm = DialogueManagerModule(
-        dialogue_history=dialogue_history,
-        input_framerate=rate,
-        frame_length=frame_length,
-    )
-    dm.add_repeat_policy()
-    dm.add_soft_interruption_policy()
-    dm.add_continue_policy()
-
-    asr = AsrDmModule(
-        device=device,
-        full_sentences=True,
-        input_framerate=rate,
-    )
-
-    llm = LlmDmModule(
-        model_path,
-        None,
-        None,
-        dialogue_history=dialogue_history,
-        printing=printing,
-        device=device,
-        verbose=True,
-    )
-
-    tts = TtsDmModule(
-        language="en",
-        model=tts_model,
-        printing=printing,
-        frame_duration=tts_frame_length,
-        device=device,
-    )
-
-    # create network
-    vad.subscribe(dm)
-    dm.subscribe(asr)
-    dm.subscribe(llm)
-    dm.subscribe(tts)
-    asr.subscribe(llm)
-    llm.subscribe(tts)
-
-    dict_out = [
-        {"module": dm, "destination": destination_cleps_dm_out},
-        {"module": tts, "destination": destination_cleps_tts_out},
-    ]
-    dict_in = [
-        {"destination": destination_local_mic_out, "iu_type": retico_core.audio.AudioIU, "subscriber_modules": [vad]},
-        {
-            "destination": destination_local_spk_out,
-            "iu_type": SpeakerAlignementIU,
-            "subscriber_modules": [vad, llm, dm],
-        },
-    ]
-    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, printing=printing, ip=ip, port=port)
-
-    # amq network out
-    # bridge_dm = AMQBridge([], destination_cleps_dm_out)
-    # bridge_tts = AMQBridge([], destination_cleps_tts_out)
-    # aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    # tts.subscribe(bridge_tts)
-    # dm.subscribe(bridge_dm)
-    # bridge_tts.subscribe(aw)
-    # bridge_dm.subscribe(aw)
-
-    # # amq network out
-    # ar_mic_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    # ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
-    # ar_mic_out.subscribe(vad)
-    # ar_spk_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    # ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
-    # ar_spk_out.subscribe(vad)
-    # ar_spk_out.subscribe(llm)
-    # ar_spk_out.subscribe(dm)
-
-    # running system
-    try:
-        network.run(vad)
-        print("Dialog system running until ENTER key is pressed")
-        input()
-        network.stop(vad)
-    except Exception:
-        terminal_logger.exception("exception in main")
-        network.stop(vad)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
-
-
-def main_DM_CLEPS_local():
-    # parameters definition
-    printing = False
-    log_folder = "logs/run"
-    tts_model_samplerate = 48000
-    frame_length = 0.02
-    plot_config_path = "configs/plot_config_DM.json"
-    plot_live = True
-
-    # AMQ parameters
-    destination_local_mic_out = "/topic/local_mic_out"
-    destination_local_spk_out = "/topic/local_spk_out"
-    destination_cleps_dm_out = "/topic/cleps_dm_out"
-    destination_cleps_tts_out = "/topic/cleps_tts_out"
-    ip = "localhost"
-    # ip = "192.168.76.242"
-    port = "61613"
-
-    # filters
-    filters = [
-        partial(
-            filter_cases,
-            cases=[
-                [("debug", [True])],
-                # [("module", ["Speaker DM Module"]), ("message", ["output_audio", "agent_EOT"])],
-                # [("module", ["AMQWriterBytes Module"]), ("decorated_iu", [SpeakerAlignementIU, "SpeakerAlignementIU"])],
-                # [("module", ["AMQReaderBytes Module"]), ("iu_type", [TextAlignedAudioIU, "TextAlignedAudioIU"])],
-                # [("module", ["AMQReaderBytes Module"]), ("self_rate", 48000)],
-                [("level", ["warning", "error"])],
-            ],
-            # cases=[
-            #     [("module", ["DialogueManager Module"])],
-            #     [("level", ["warning", "error"])],
-            # ],
-        )
-    ]
-    # configurate logger
-    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
-
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
-
-    # create modules
-    # mic = audio.MicrophoneModule()
-    mic = WOZMicrophoneModule_2(frame_length=frame_length)
-
-    speaker = SpeakerDmModule(
-        rate=tts_model_samplerate,
-    )
-
-    dict_out = [
-        {"module": mic, "destination": destination_local_mic_out},
-        {"module": speaker, "destination": destination_local_spk_out},
-    ]
-    dict_in = [
-        {"destination": destination_cleps_dm_out, "iu_type": DMIU, "subscriber_modules": [speaker]},
-        {
-            "destination": destination_cleps_tts_out,
-            "iu_type": TextAlignedAudioIU,
-            "subscriber_modules": [speaker],
-        },
-    ]
-    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, printing=printing, ip=ip, port=port)
-
-    # bridge_mic = AMQBridge([], destination_local_mic_out)
-    # bridge_spk = AMQBridge([], destination_local_spk_out)
-    # aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    # ar = AMQReaderBytes(ip=ip, port=port, print=printing)
-    # ar.add(destination=destination_cleps_dm_out, target_iu_type=DMIU)
-    # ar.add(destination=destination_cleps_tts_out, target_iu_type=TextAlignedAudioIU)
-
-    # # create network
-    # mic.subscribe(bridge_mic)
-    # speaker.subscribe(bridge_spk)
-    # bridge_mic.subscribe(aw)
-    # bridge_spk.subscribe(aw)
-    # ar.subscribe(speaker)
-
-    # running system
-    try:
-        network.run(mic)
-        print("Dialog system running until ENTER key is pressed")
-        input()
-        network.stop(mic)
-    except Exception:
-        terminal_logger.exception("exception in main")
-        network.stop(mic)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
-
-
-def test_wozmic():
-    # parameters definition
-    printing = False
-    log_folder = "logs/run"
-    tts_model_samplerate = 48000
-    plot_config_path = "configs/plot_config_DM.json"
-    plot_live = False
-    rate = 0.02
-    # parameters definition
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    printing = False
-    log_folder = "logs/run"
-    frame_length = 0.02
-    # frame_length = 0.1
-    tts_frame_length = 0.2
-    rate = 16000
-    plot_config_path = "configs/plot_config_DM.json"
-
-    # filters
-    filters = [
-        partial(
-            filter_cases,
-            cases=[
-                [("debug", [True])],
-                [("level", ["warning", "error"])],
-                [("module", ["Speaker DM Module", "WozMicrophone Module"])],
-            ],
-        )
-    ]
-    # configurate logger
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
-
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
-
-    # this works
-    # tts params
-    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
-    # speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=tts_frame_length)
-
-    # tts params
-    # mic = WozMicrophoneModule(frame_length=tts_frame_length)
-    # speaker = SpeakerDmModule(rate=tts_model_samplerate, printing=printing, frame_length=tts_frame_length)
-
-    # mic params
-    mic = WozMicrophoneModule(frame_length=frame_length)
-    speaker = SpeakerDmModule(rate=rate, printing=printing, frame_length=frame_length)
-
-    # create modules
-    # vad = VadModule(
-    #     input_framerate=rate,
-    #     frame_length=frame_length,
-    # )
-
-    mic.subscribe(speaker)
-    # vad.subscribe(mic)
-
-    # running system
-    try:
-        network.run(mic)
-        print("Dialog system running until ENTER key is pressed")
-        input()
-        network.stop(mic)
-    except Exception:
-        terminal_logger.exception("exception in main")
-        network.stop(mic)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
-
-
 if __name__ == "__main__":
-    # test_wozmic()
-
     parser = argparse.ArgumentParser("simple_example")
     parser.add_argument(
         "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
     )
     parser.add_argument(
-        "--with_cleps",
+        "--remote_computing",
         "-c",
-        help="Set to local or remote to run the system in mutliple parts for cleps support.",
+        help="Set to local or remote to run the system in multiple parts for remote computing (like clusters).",
         type=str,
         choices=["local", "remote"],
     )
     args = parser.parse_args()
-    print(args)
     if args.cuda_test is not None:
         test_cuda(args.cuda_test)
     else:
-        if args.with_cleps is not None:
-            if args.with_cleps == "local":
-                main_DM_CLEPS_local()
-            elif args.with_cleps == "remote":
-                main_DM_CLEPS_remote()
+        if args.remote_computing is not None:
+            if args.remote_computing == "local":
+                main_DM_remote_computing_local()
+            elif args.remote_computing == "remote":
+                main_DM_remote_computing_remote()
             else:
-                print("with_cleps argument set to something else than remote or local.")
+                print("remote_computing argument set to something else than remote or local.")
         else:
             main_DM()
     plot_once(plot_config_path="configs/plot_config_DM.json")

@@ -500,12 +500,11 @@ class TtsDmModule(retico_core.AbstractModule):
                 i += self.chunk_size
                 iu = self.create_iu(
                     grounded_in=grounded_iu,
-                    audio=chunk,
+                    raw_audio=chunk,
                     chunk_size=self.chunk_size,
                     rate=self.samplerate,
                     sample_width=self.samplewidth,
                     grounded_word=temp_word,
-                    # word_id=word_id,
                     word_id=int(word_id),
                     char_id=char_id,
                     turn_id=grounded_iu.turn_id,

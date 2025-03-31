@@ -1726,7 +1726,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                 for iu in new_ius:
                     output_iu = self.create_iu(
                         grounded_in=self.current_input[-1],
-                        audio=iu.payload,
+                        raw_audio=iu.payload,
                         nframes=self.nframes,
                         rate=self.input_framerate,
                         sample_width=self.sample_width,
@@ -1753,7 +1753,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                     for iu in self.current_input[-self.buffer_pointer :]:
                         output_iu = self.create_iu(
                             grounded_in=self.current_input[-1],
-                            audio=iu.payload,
+                            raw_audio=iu.payload,
                             nframes=self.nframes,
                             rate=self.input_framerate,
                             sample_width=self.sample_width,
@@ -1764,7 +1764,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                 for iu in self.current_input:
                     output_iu = self.create_iu(
                         grounded_in=self.current_input[-1],
-                        audio=iu.payload,
+                        raw_audio=iu.payload,
                         nframes=self.nframes,
                         rate=self.input_framerate,
                         sample_width=self.sample_width,
