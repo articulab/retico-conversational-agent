@@ -2,7 +2,7 @@ import os
 import time
 
 from retico_conversational_agent.WOZ_microphone import WozMicrophoneModule
-from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModul2
+from retico_conversational_agent.WOZ_microphone2 import WOZMicrophoneModule_2
 from retico_conversational_agent.microphone_ptt import MicrophonePTTModule
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -41,6 +41,7 @@ from retico_conversational_agent.additional_IUs import (
 
 
 from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
+from retico_amq.utils import define_amq_network
 
 
 def test_cuda(module_names=["llm"]):
@@ -232,7 +233,7 @@ def main_DM():
     # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
     # mic = audio.MicrophoneModule()
     # mic = WozMicrophoneModule(frame_length=frame_length)
-    mic = WOZMicrophoneModul2(frame_length=frame_length)
+    mic = WOZMicrophoneModule_2(frame_length=frame_length)
 
     vad = VadModule(
         input_framerate=rate,
@@ -417,17 +418,6 @@ def main_DM_CLEPS_remote():
         device=device,
     )
 
-    bridge_dm = AMQBridge([], destination_cleps_dm_out)
-    bridge_tts = AMQBridge([], destination_cleps_tts_out)
-    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    # ar = AMQReaderBytes(ip=ip, port=port, print=printing)
-    # ar.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
-    # ar.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
-    ar_mic_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
-    ar_spk_out = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
-
     # create network
     vad.subscribe(dm)
     dm.subscribe(asr)
@@ -435,17 +425,39 @@ def main_DM_CLEPS_remote():
     dm.subscribe(tts)
     asr.subscribe(llm)
     llm.subscribe(tts)
-    tts.subscribe(bridge_tts)
-    dm.subscribe(bridge_dm)
-    bridge_tts.subscribe(aw)
-    bridge_dm.subscribe(aw)
-    # ar.subscribe(vad)
-    # ar.subscribe(llm)
-    # ar.subscribe(dm)
-    ar_mic_out.subscribe(vad)
-    ar_spk_out.subscribe(vad)
-    ar_spk_out.subscribe(llm)
-    ar_spk_out.subscribe(dm)
+
+    dict_out = [
+        {"module": dm, "destination": destination_cleps_dm_out},
+        {"module": tts, "destination": destination_cleps_tts_out},
+    ]
+    dict_in = [
+        {"destination": destination_local_mic_out, "iu_type": retico_core.audio.AudioIU, "subscriber_modules": [vad]},
+        {
+            "destination": destination_local_spk_out,
+            "iu_type": SpeakerAlignementIU,
+            "subscriber_modules": [vad, llm, dm],
+        },
+    ]
+    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, printing=printing, ip=ip, port=port)
+
+    # amq network out
+    # bridge_dm = AMQBridge([], destination_cleps_dm_out)
+    # bridge_tts = AMQBridge([], destination_cleps_tts_out)
+    # aw = AMQWriterBytes(ip=ip, port=port, print=printing)
+    # tts.subscribe(bridge_tts)
+    # dm.subscribe(bridge_dm)
+    # bridge_tts.subscribe(aw)
+    # bridge_dm.subscribe(aw)
+
+    # # amq network out
+    # ar_mic_out = AMQReaderBytes(ip=ip, port=port, print=printing)
+    # ar_mic_out.add(destination=destination_local_mic_out, target_iu_type=retico_core.audio.AudioIU)
+    # ar_mic_out.subscribe(vad)
+    # ar_spk_out = AMQReaderBytes(ip=ip, port=port, print=printing)
+    # ar_spk_out.add(destination=destination_local_spk_out, target_iu_type=SpeakerAlignementIU)
+    # ar_spk_out.subscribe(vad)
+    # ar_spk_out.subscribe(llm)
+    # ar_spk_out.subscribe(dm)
 
     # running system
     try:
@@ -512,25 +524,39 @@ def main_DM_CLEPS_local():
 
     # create modules
     # mic = audio.MicrophoneModule()
-    mic = WOZMicrophoneModul2(frame_length=frame_length)
+    mic = WOZMicrophoneModule_2(frame_length=frame_length)
 
     speaker = SpeakerDmModule(
         rate=tts_model_samplerate,
     )
 
-    bridge_mic = AMQBridge([], destination_local_mic_out)
-    bridge_spk = AMQBridge([], destination_local_spk_out)
-    aw = AMQWriterBytes(ip=ip, port=port, print=printing)
-    ar = AMQReaderBytes(ip=ip, port=port, print=printing)
-    ar.add(destination=destination_cleps_dm_out, target_iu_type=DMIU)
-    ar.add(destination=destination_cleps_tts_out, target_iu_type=TextAlignedAudioIU)
+    dict_out = [
+        {"module": mic, "destination": destination_local_mic_out},
+        {"module": speaker, "destination": destination_local_spk_out},
+    ]
+    dict_in = [
+        {"destination": destination_cleps_dm_out, "iu_type": DMIU, "subscriber_modules": [speaker]},
+        {
+            "destination": destination_cleps_tts_out,
+            "iu_type": TextAlignedAudioIU,
+            "subscriber_modules": [speaker],
+        },
+    ]
+    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, printing=printing, ip=ip, port=port)
 
-    # create network
-    mic.subscribe(bridge_mic)
-    speaker.subscribe(bridge_spk)
-    bridge_mic.subscribe(aw)
-    bridge_spk.subscribe(aw)
-    ar.subscribe(speaker)
+    # bridge_mic = AMQBridge([], destination_local_mic_out)
+    # bridge_spk = AMQBridge([], destination_local_spk_out)
+    # aw = AMQWriterBytes(ip=ip, port=port, print=printing)
+    # ar = AMQReaderBytes(ip=ip, port=port, print=printing)
+    # ar.add(destination=destination_cleps_dm_out, target_iu_type=DMIU)
+    # ar.add(destination=destination_cleps_tts_out, target_iu_type=TextAlignedAudioIU)
+
+    # # create network
+    # mic.subscribe(bridge_mic)
+    # speaker.subscribe(bridge_spk)
+    # bridge_mic.subscribe(aw)
+    # bridge_spk.subscribe(aw)
+    # ar.subscribe(speaker)
 
     # running system
     try:
