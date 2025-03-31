@@ -463,6 +463,12 @@ class LlmDmModule(retico_core.AbstractModule):
                 return True, self.stop_token_patterns[i], i
         return False, None, None
 
+    def stopping_criteria(self, tokens, logits):
+        for i, pattern in enumerate(self.stop_token_patterns):
+            if pattern == tokens[-len(pattern) :]:
+                return True, pattern
+        return False, None
+
     def is_role_pattern(self, sentence):
         """Returns True if one of the role token patterns matches the beginning
         of the sentence.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "retico-conversational-agent"
-authors = [{ name = "Marius Le Chapelier", email = "mariuslechaper@gmail.com" }]
+authors = [{ name = "Marius Le Chapelier", email = "mariuslechapelier@gmail.com" }]
 description = ""
 readme = "README.md"
 license = { file = "LICENSE" }
