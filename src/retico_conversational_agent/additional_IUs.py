@@ -7,6 +7,7 @@ Additional Incremental Unit classes used in Simple Retico Agent.
 
 import retico_core
 
+
 class SpeechRecognitionTurnIU(retico_core.text.SpeechRecognitionIU):
     """Same IU as SpeechRecognition, but enhanced with turn_id."""
 
@@ -18,6 +19,7 @@ class SpeechRecognitionTurnIU(retico_core.text.SpeechRecognitionIU):
         super().__init__(**kwargs)
         self.turn_id = turn_id
 
+
 class TextFinalIU(retico_core.text.TextIU):
     """TextIU with an additional final attribute."""
 
@@ -26,9 +28,7 @@ class TextFinalIU(retico_core.text.TextIU):
         return "Text Final IU"
 
     def __init__(self, final=False, **kwargs):
-        super().__init__(
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self.final = final
 
 
@@ -40,9 +40,7 @@ class AudioFinalIU(retico_core.audio.AudioIU):
         return "Audio Final IU"
 
     def __init__(self, final=False, **kwargs):
-        super().__init__(
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self.final = final
 
 
@@ -79,9 +77,7 @@ class BackchannelIU(retico_core.audio.AudioIU):
         return "Backchannel IU"
 
     def __init__(self, **kwargs):
-        super().__init__(
-            **kwargs,
-        )
+        super().__init__(**kwargs)
 
 
 class DMIU(retico_core.audio.AudioIU):
@@ -102,9 +98,7 @@ class DMIU(retico_core.audio.AudioIU):
         final=None,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self.action = action
         self.event = event
         self.turn_id = turn_id
@@ -138,10 +132,6 @@ class SpeakerAlignementIU(retico_core.audio.AudioIU):
 
     def __init__(
         self,
-        creator=None,
-        iuid=0,
-        previous_iu=None,
-        grounded_in=None,
         grounded_word=None,
         word_id=None,
         char_id=None,
@@ -151,13 +141,7 @@ class SpeakerAlignementIU(retico_core.audio.AudioIU):
         final=None,
         **kwargs,
     ):
-        super().__init__(
-            creator=creator,
-            iuid=iuid,
-            previous_iu=previous_iu,
-            grounded_in=grounded_in,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
         self.grounded_word = grounded_word
         self.word_id = word_id
         self.char_id = char_id
@@ -190,14 +174,6 @@ class TextAlignedAudioIU(retico_core.audio.AudioIU):
 
     def __init__(
         self,
-        creator=None,
-        iuid=0,
-        previous_iu=None,
-        grounded_in=None,
-        audio=None,
-        rate=None,
-        nframes=None,
-        sample_width=None,
         grounded_word=None,
         word_id=None,
         char_id=None,
@@ -206,17 +182,7 @@ class TextAlignedAudioIU(retico_core.audio.AudioIU):
         final=None,
         **kwargs,
     ):
-        super().__init__(
-            creator=creator,
-            iuid=iuid,
-            previous_iu=previous_iu,
-            grounded_in=grounded_in,
-            payload=audio,
-            raw_audio=audio,
-            rate=rate,
-            nframes=nframes,
-            sample_width=sample_width,
-        )
+        super().__init__(**kwargs)
         self.grounded_word = grounded_word
         self.word_id = word_id
         self.char_id = char_id
@@ -231,7 +197,7 @@ class TextAlignedAudioIU(retico_core.audio.AudioIU):
         char_id=None,
         turn_id=None,
         clause_id=None,
-        audio=None,
+        raw_audio=None,
         chunk_size=None,
         rate=None,
         sample_width=None,
@@ -246,8 +212,8 @@ class TextAlignedAudioIU(retico_core.audio.AudioIU):
         self.clause_id = clause_id
         self.final = final
         # AudioIU information
-        self.payload = audio
-        self.raw_audio = audio
+        self.payload = raw_audio
+        self.raw_audio = raw_audio
         self.rate = rate
         self.nframes = chunk_size
         self.sample_width = sample_width
@@ -270,23 +236,12 @@ class TurnTextIU(retico_core.text.TextIU):
 
     def __init__(
         self,
-        creator=None,
-        iuid=0,
-        previous_iu=None,
-        grounded_in=None,
-        text=None,
         turn_id=None,
         clause_id=None,
         final=False,
         **kwargs,
     ):
-        super().__init__(
-            creator=creator,
-            iuid=iuid,
-            previous_iu=previous_iu,
-            grounded_in=grounded_in,
-            text=text,
-        )
+        super().__init__(**kwargs)
         self.turn_id = turn_id
         self.clause_id = clause_id
         self.final = final
@@ -325,39 +280,19 @@ class VADTurnAudioIU(retico_core.audio.AudioIU):
 
     def __init__(
         self,
-        creator=None,
-        iuid=0,
-        previous_iu=None,
-        grounded_in=None,
-        audio=None,
         vad_state=None,
-        rate=None,
-        nframes=None,
-        sample_width=None,
         **kwargs,
     ):
-        super().__init__(
-            creator=creator,
-            iuid=iuid,
-            previous_iu=previous_iu,
-            grounded_in=grounded_in,
-            payload=audio,
-            raw_audio=audio,
-            rate=rate,
-            nframes=nframes,
-            sample_width=sample_width,
-        )
+        super().__init__(**kwargs)
         self.vad_state = vad_state
 
-    def set_data(
-        self, vad_state=None, audio=None, nframes=None, rate=None, sample_width=None
-    ):
+    def set_data(self, vad_state=None, raw_audio=None, nframes=None, rate=None, sample_width=None):
         """Sets AudioIU parameters and vad_state."""
         # vad_state
         self.vad_state = vad_state
         # AudioIU information
-        self.payload = audio
-        self.raw_audio = audio
+        self.payload = raw_audio
+        self.raw_audio = raw_audio
         self.rate = rate
         self.nframes = nframes
         self.sample_width = sample_width

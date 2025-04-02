@@ -18,6 +18,9 @@ from retico_core.log_utils import (
     configurate_plot,
     plot_once,
 )
+from retico_core.audio import MicrophonePTTModule
+
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
 
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.VAD_DM import VadModule
@@ -29,6 +32,15 @@ from retico_conversational_agent.dialogue_manager import (
     DialogueManagerModule,
     DialogueManagerModule_2,
 )
+from retico_conversational_agent.additional_IUs import (
+    DMIU,
+    SpeakerAlignementIU,
+    TextAlignedAudioIU,
+)
+from retico_conversational_agent.main_cleps import main_DM_remote_computing_remote, main_DM_remote_computing_local
+
+from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
+from retico_amq.utils import define_amq_network
 
 
 def test_cuda(module_names=["llm"]):
@@ -37,6 +49,8 @@ def test_cuda(module_names=["llm"]):
     verbose = True
     log_folder = "logs/run"
     model_path = "./models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
+    model_repo = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+    model_name = "mistral-7b-instruct-v0.2.Q4_K_S.gguf"
     rate = 16000
     tts_model_samplerate = 48000
     tts_frame_length = 0.2
@@ -59,10 +73,12 @@ def test_cuda(module_names=["llm"]):
 
     modules = []
 
+    print("device = ", device)
     print("module names = ", module_names)
 
     for module_name in module_names:
         if module_name == "llm":
+            print("llm init")
             dialogue_history = DialogueHistory(
                 prompt_format_config,
                 terminal_logger=terminal_logger,
@@ -71,6 +87,9 @@ def test_cuda(module_names=["llm"]):
             )
 
             llm = LlmDmModule(
+                # None,
+                # model_repo,
+                # model_name,
                 model_path,
                 None,
                 None,
@@ -106,11 +125,15 @@ def test_cuda(module_names=["llm"]):
     # running system
     try:
         m_list, _ = network.discover(modules[0])
+        print("setup")
         for m in m_list:
             m.setup()
+        print("stop")
         for m in m_list:
             m.stop()
     except Exception:
+        print("exception")
+        terminal_logger.exception()
         network.stop(modules[0])
 
 
@@ -175,6 +198,7 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
+                # [("module", ["VAD DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -206,7 +230,9 @@ def main_DM():
     # create modules
     # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
     # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
-    mic = audio.MicrophoneModule()
+    # mic = audio.MicrophoneModule()
+    # mic = WozMicrophoneModule(frame_length=frame_length)
+    mic = WOZMicrophoneModule(frame_length=frame_length)
 
     vad = VadModule(
         input_framerate=rate,
@@ -291,11 +317,24 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
     )
+    parser.add_argument(
+        "--remote_computing",
+        "-c",
+        help="Set to local or remote to run the system in multiple parts for remote computing (like clusters).",
+        type=str,
+        choices=["local", "remote"],
+    )
     args = parser.parse_args()
-    print(args)
     if args.cuda_test is not None:
         test_cuda(args.cuda_test)
     else:
-        main_DM()
-        # pass
-    # plot_once(plot_config_path="configs/plot_config_DM.json")
+        if args.remote_computing is not None:
+            if args.remote_computing == "local":
+                main_DM_remote_computing_local()
+            elif args.remote_computing == "remote":
+                main_DM_remote_computing_remote()
+            else:
+                print("remote_computing argument set to something else than remote or local.")
+        else:
+            main_DM()
+    plot_once(plot_config_path="configs/plot_config_DM.json")

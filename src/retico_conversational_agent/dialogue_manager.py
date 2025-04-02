@@ -36,18 +36,12 @@ Inputs : AudioIU, TextAlignedAudioIU
 Outputs : VADTurnAudioIU
 """
 
-from collections.abc import Callable
 from functools import partial
-import json
 import random
 import time
-import numpy as np
-import pydub
-import webrtcvad
 from transitions import Machine
 
 import retico_core
-from retico_core.audio import AudioIU
 
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.additional_IUs import (
@@ -55,8 +49,9 @@ from retico_conversational_agent.additional_IUs import (
     DMIU,
     VADIU,
     SpeakerAlignementIU,
-    SpeechRecognitionTurnIU
+    SpeechRecognitionTurnIU,
 )
+
 
 class DialogueManagerModule(retico_core.AbstractModule):
     """Module that plays a central role in the dialogue system because it centralizes a lot of information to be able to take complex decisions at the dialogue level.
@@ -417,9 +412,15 @@ class DialogueManagerModule(retico_core.AbstractModule):
         if not _n_audio_chunks or len(self.current_input) < _n_audio_chunks:
             return False
         _n_audio_chunks = int(_n_audio_chunks)
-        speech_counter = sum(
-            1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu)
-        )
+        speech_counter = sum(1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu))
+        # self.terminal_logger.info(
+        #     "speech counter ",
+        #     debug=True,
+        #     cpt=speech_counter,
+        #     len=_n_audio_chunks,
+        #     percent=100 * speech_counter / _n_audio_chunks,
+        #     threshold=threshold,
+        # )
         if speech_counter >= int(threshold * _n_audio_chunks):
             return True
         return False
@@ -432,9 +433,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
             bool: the BOT prediction.
         """
         return self.recognize(
-            _n_audio_chunks=self.get_n_audio_chunks(
-                n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur
-            ),
+            _n_audio_chunks=self.get_n_audio_chunks(n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur),
             threshold=self.silence_threshold,
             condition=lambda iu: iu.va_user,
         )
@@ -494,9 +493,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
         Args:
             action (str): action description
         """
-        self.terminal_logger.info(
-            f"action = {action}", debug=True, turn_id=self.turn_id
-        )
+        self.terminal_logger.info(f"action = {action}", debug=True, turn_id=self.turn_id)
         self.file_logger.info(action)
         # output_iu = self.create_iu(action=action, turn_id=self.turn_id)
         output_iu = DMIU(
@@ -560,11 +557,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
     def update_current_input(self):
         """Update the current_input AudioIU buffer by removing the oldest IUs (that will not be considered for EOT or BOT recognition)"""
         self.current_input = self.current_input[
-            -int(
-                self.get_n_audio_chunks(
-                    n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur
-                )
-            ) :
+            -int(self.get_n_audio_chunks(n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur)) :
         ]
 
     def state_transition(self, source_state, destination_state):
@@ -673,9 +666,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                 + "' had no answer from the child. Please provide a next teacher sentence that would re-engage the child in the conversation. \
             Here is the beginning of the conversation :"
             )
-            previous_system_prompt = self.dialogue_history.change_system_prompt(
-                repeat_system_prompt
-            )
+            previous_system_prompt = self.dialogue_history.change_system_prompt(repeat_system_prompt)
             um = retico_core.UpdateMessage()
             iu = SpeechRecognitionTurnIU(
                 creator=self,
@@ -705,7 +696,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
             update_message (UpdateType): UpdateMessage that contains new IUs, if the IUs are ADD,
             they are added to the audio_buffer.
         """
-        current_iu_updated = False
+        current_input_updated = False
         for iu, ut in update_message:
             if isinstance(iu, VADIU):
                 if ut == retico_core.UpdateType.ADD:
@@ -714,9 +705,9 @@ class DialogueManagerModule(retico_core.AbstractModule):
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
                     self.current_input.append(iu)
-                    current_iu_updated = True
+                    current_input_updated = True
 
-        if current_iu_updated:
+        if current_input_updated:
             if self.dialogue_state == "opening":
                 # 2 choices : let user engage conversation, or generate an introduction, like "hello, my name is Sara !"
                 # choice 1 : waiting for the user to talk
@@ -769,12 +760,11 @@ class DialogueManagerModule(retico_core.AbstractModule):
                         self.state_transition("silence_after_user", "agent_speaking")
                         # self.send_event("agent_BOT_new_turn")
                     else:  # stay on state "silence_after_user"
-                        self.state_transition(
-                            "silence_after_user", "silence_after_user"
-                        )
+                        self.state_transition("silence_after_user", "silence_after_user")
 
             elif self.dialogue_state == "silence_after_agent":
                 user_BOT = self.recognize_user_bot()
+                # self.terminal_logger.info("recognize_user_bot", debug=True, user_BOT=user_BOT)
                 agent_BOT = self.recognize_agent_bot()
                 if user_BOT:
                     if agent_BOT:
@@ -789,9 +779,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                         self.state_transition("silence_after_agent", "agent_speaking")
                         # self.send_event("agent_BOT_same_turn")
                     else:  # stay on state "silence_after_user"
-                        self.state_transition(
-                            "silence_after_agent", "silence_after_agent"
-                        )
+                        self.state_transition("silence_after_agent", "silence_after_agent")
 
             elif self.dialogue_state == "user_overlaps_agent":
                 user_EOT = self.recognize_user_eot()
@@ -799,9 +787,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                 if user_EOT:
                     # self.send_audio_ius(final=True)
                     if agent_EOT:
-                        self.state_transition(
-                            "user_overlaps_agent", "silence_after_user"
-                        )  # the opposite ?
+                        self.state_transition("user_overlaps_agent", "silence_after_user")  # the opposite ?
                     else:
                         self.state_transition("user_overlaps_agent", "agent_speaking")
                 else:
@@ -809,9 +795,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                     if agent_EOT:
                         self.state_transition("user_overlaps_agent", "user_speaking")
                     else:  # stay on state "user_overlaps_agent"
-                        self.state_transition(
-                            "user_overlaps_agent", "user_overlaps_agent"
-                        )
+                        self.state_transition("user_overlaps_agent", "user_overlaps_agent")
 
             elif self.dialogue_state == "agent_overlaps_user":
                 user_EOT = self.recognize_user_eot()
@@ -819,9 +803,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                 if user_EOT:
                     # self.send_audio_ius(final=True)
                     if agent_EOT:
-                        self.state_transition(
-                            "agent_overlaps_user", "silence_after_agent"
-                        )  # the opposite ?
+                        self.state_transition("agent_overlaps_user", "silence_after_agent")  # the opposite ?
                     else:
                         self.state_transition("agent_overlaps_user", "agent_speaking")
                 else:
@@ -829,9 +811,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                     if agent_EOT:
                         self.state_transition("agent_overlaps_user", "user_speaking")
                     else:  # stay on state "agent_overlaps_user"
-                        self.state_transition(
-                            "agent_overlaps_user", "agent_overlaps_user"
-                        )
+                        self.state_transition("agent_overlaps_user", "agent_overlaps_user")
 
             elif self.dialogue_state == "mutual_overlap":
                 user_EOT = self.recognize_user_eot()
@@ -1194,9 +1174,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         )
 
     def add_continue_policy(self):
-        self.fsm.get_transitions(source="user_speaking", dest="silence_after_user")[
-            0
-        ].after = []
+        self.fsm.get_transitions(source="user_speaking", dest="silence_after_user")[0].after = []
         self.add_transition_callback(
             "silence_after_user",
             "mutual_overlap",
@@ -1341,18 +1319,14 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         if not _n_audio_chunks or len(self.current_input) < _n_audio_chunks:
             return False
         _n_audio_chunks = int(_n_audio_chunks)
-        speech_counter = sum(
-            1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu)
-        )
+        speech_counter = sum(1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu))
         if speech_counter >= int(threshold * _n_audio_chunks):
             return True
         return False
 
     def recognize_user_bot(self):
         return self.recognize(
-            _n_audio_chunks=self.get_n_audio_chunks(
-                n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur
-            ),
+            _n_audio_chunks=self.get_n_audio_chunks(n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur),
             threshold=self.silence_threshold,
             condition=lambda iu: iu.va_user,
         )
@@ -1396,9 +1370,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         Args:
             action (str): action description
         """
-        self.terminal_logger.info(
-            f"action = {action}", debug=True, turn_id=self.turn_id
-        )
+        self.terminal_logger.info(f"action = {action}", debug=True, turn_id=self.turn_id)
         self.file_logger.info(action)
         # output_iu = self.create_iu(action=action, turn_id=self.turn_id)
         output_iu = DMIU(
@@ -1456,11 +1428,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
 
     def update_current_input(self):
         self.current_input = self.current_input[
-            -int(
-                self.get_n_audio_chunks(
-                    n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur
-                )
-            ) :
+            -int(self.get_n_audio_chunks(n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur)) :
         ]
 
     def increment_turn_id(self):
@@ -1528,9 +1496,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
                 + "' had no answer from the child. Please provide a next teacher sentence that would re-engage the child in the conversation. \
             Here is the beginning of the conversation :"
             )
-            previous_system_prompt = self.dialogue_history.change_system_prompt(
-                repeat_system_prompt
-            )
+            previous_system_prompt = self.dialogue_history.change_system_prompt(repeat_system_prompt)
             um = retico_core.UpdateMessage()
             iu = SpeechRecognitionTurnIU(
                 creator=self,
@@ -1594,9 +1560,7 @@ class VADTurnModule2(retico_core.AbstractModule):
 
     @staticmethod
     def description():
-        return (
-            "a module enhancing AudioIUs with turn-taking states using webrtcvad's VAD"
-        )
+        return "a module enhancing AudioIUs with turn-taking states using webrtcvad's VAD"
 
     @staticmethod
     def input_ius():
@@ -1663,18 +1627,14 @@ class VADTurnModule2(retico_core.AbstractModule):
         if not _n_audio_chunks or len(self.current_input) < _n_audio_chunks:
             return False
         _n_audio_chunks = int(_n_audio_chunks)
-        speech_counter = sum(
-            1 for iu in self.current_input[-_n_audio_chunks:] if condition
-        )
+        speech_counter = sum(1 for iu in self.current_input[-_n_audio_chunks:] if condition)
         if speech_counter >= int(threshold * _n_audio_chunks):
             return True
         return False
 
     def recognize_bot(self):
         return self.recognize(
-            _n_audio_chunks=self.get_n_audio_chunks(
-                n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur
-            ),
+            _n_audio_chunks=self.get_n_audio_chunks(n_chunks_param_name="_n_bot_audio_chunks", duration=self.bot_dur),
             threshold=self.silence_threshold,
             condition=lambda iu: iu.va_user,
         )
@@ -1726,9 +1686,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                 self.terminal_logger.info("interruption")
                 self.file_logger.info("interruption")
 
-                return retico_core.UpdateMessage.from_iu(
-                    output_iu, retico_core.UpdateType.ADD
-                )
+                return retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
 
             else:
                 # print("SILENCE")
@@ -1762,7 +1720,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                 for iu in new_ius:
                     output_iu = self.create_iu(
                         grounded_in=self.current_input[-1],
-                        audio=iu.payload,
+                        raw_audio=iu.payload,
                         nframes=self.nframes,
                         rate=self.input_framerate,
                         sample_width=self.sample_width,
@@ -1789,7 +1747,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                     for iu in self.current_input[-self.buffer_pointer :]:
                         output_iu = self.create_iu(
                             grounded_in=self.current_input[-1],
-                            audio=iu.payload,
+                            raw_audio=iu.payload,
                             nframes=self.nframes,
                             rate=self.input_framerate,
                             sample_width=self.sample_width,
@@ -1800,7 +1758,7 @@ class VADTurnModule2(retico_core.AbstractModule):
                 for iu in self.current_input:
                     output_iu = self.create_iu(
                         grounded_in=self.current_input[-1],
-                        audio=iu.payload,
+                        raw_audio=iu.payload,
                         nframes=self.nframes,
                         rate=self.input_framerate,
                         sample_width=self.sample_width,

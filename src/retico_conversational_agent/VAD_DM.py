@@ -20,13 +20,13 @@ Inputs : AudioIU, TextIU
 Outputs : VADIU
 """
 
-import pydub
 import webrtcvad
 
 import retico_core
 from retico_core import audio
 
 from retico_conversational_agent.additional_IUs import VADIU, SpeakerAlignementIU
+from utils import resample_audio, resample_audio_2
 
 
 class VadModule(retico_core.AbstractModule):
@@ -96,28 +96,6 @@ class VadModule(retico_core.AbstractModule):
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.VA_agent = False
 
-    def resample_audio(self, raw_audio):
-        """Resample the audio's frame_rate to correspond to
-        self.target_framerate.
-
-        Args:
-            raw_audio (bytes): the audio received from the microphone that
-                could need resampling.
-
-        Returns:
-            bytes: the resampled audio chunk.
-        """
-        if self.input_framerate != self.target_framerate:
-            s = pydub.AudioSegment(
-                raw_audio,
-                sample_width=self.sample_width,
-                channels=self.channels,
-                frame_rate=self.input_framerate,
-            )
-            s = s.set_frame_rate(self.target_framerate)
-            return s._data
-        return raw_audio
-
     def process_update(self, update_message):
         """Receives SpeakerAlignementIU and AudioIU, use the first one to set the
         self.VA_agent class attribute, and process the second one by predicting
@@ -145,12 +123,19 @@ class VadModule(retico_core.AbstractModule):
                         self.VA_agent = True
             elif isinstance(iu, audio.AudioIU):
                 if ut == retico_core.UpdateType.ADD:
+                    # self.terminal_logger.info(
+                    #     "rates", input=self.input_framerate, iu=iu.rate, target=self.target_framerate, debug=True
+                    # )
                     if self.input_framerate != iu.rate:
                         raise ValueError(
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
-                    raw_audio = self.resample_audio(iu.raw_audio)
+                    # raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
+                    raw_audio = resample_audio_2(
+                        iu.raw_audio, iu.rate, self.target_framerate, self.sample_width, self.channels
+                    )
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
+                    # self.terminal_logger.info("received audio IU", VA_user=VA_user, debug=True)
                     output_iu = self.create_iu(
                         grounded_in=iu,
                         raw_audio=raw_audio,
@@ -160,9 +145,7 @@ class VadModule(retico_core.AbstractModule):
                         va_user=VA_user,
                         va_agent=self.VA_agent,
                     )
-                    um = retico_core.UpdateMessage.from_iu(
-                        output_iu, retico_core.UpdateType.ADD
-                    )
+                    um = retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
                     self.append(um)
 
                     # something for logging
