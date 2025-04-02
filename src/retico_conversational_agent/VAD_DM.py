@@ -24,13 +24,6 @@ import webrtcvad
 
 import retico_core
 
-# from retico_conversational_agent import (
-#     resample_audio,
-#     resample_audio_2,
-#     VADIU,
-#     SpeakerAlignementIU,
-# )
-
 from .utils import resample_audio, resample_audio_2
 from .additional_IUs import VADIU, SpeakerAlignementIU
 
@@ -137,7 +130,7 @@ class VadModule(retico_core.AbstractModule):
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
                     # raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
-                    raw_audio = retico_conversational_agent.resample_audio_2(
+                    raw_audio = resample_audio_2(
                         iu.raw_audio, iu.rate, self.target_framerate, self.sample_width, self.channels
                     )
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
