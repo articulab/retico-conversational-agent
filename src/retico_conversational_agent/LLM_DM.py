@@ -59,7 +59,6 @@ Child : I am fine, and I can't wait to learn mathematics!
 Teacher :"
 """
 
-import datetime
 import threading
 import time
 from llama_cpp import Llama
@@ -68,9 +67,9 @@ import retico_core
 from retico_core.text import SpeechRecognitionIU
 from retico_core.log_utils import log_exception
 
-from retico_conversational_agent.dialogue_history import DialogueHistory
-from retico_conversational_agent.utils import device_definition
-from retico_conversational_agent.additional_IUs import (
+from .dialogue_history import DialogueHistory
+from .utils import device_definition
+from .additional_IUs import (
     VADTurnAudioIU,
     TextAlignedAudioIU,
     TurnTextIU,

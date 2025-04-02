@@ -1,6 +1,9 @@
 import numpy as np
 import pydub
 import torch
+import os
+import librosa
+import soundfile as sf
 
 
 # DEVICE DEF
@@ -40,14 +43,6 @@ def device_definition(device):
             )
         final_device = "cpu"
     return final_device
-
-
-import audioop
-import glob
-import os
-import wave
-import librosa
-import soundfile as sf
 
 
 def resample_audio_file(src: str, dst: str, outrate: int = 16000):

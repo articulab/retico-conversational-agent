@@ -1,5 +1,4 @@
 import os
-import time
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from functools import partial
@@ -7,13 +6,8 @@ import torch
 import argparse
 
 import retico_core
-from retico_core import network, audio
+from retico_core import network
 from retico_core.log_utils import (
-    filter_has_key,
-    filter_does_not_have_key,
-    filter_value_in_list,
-    filter_value_not_in_list,
-    filter_conditions,
     filter_cases,
     configurate_plot,
     plot_once,
@@ -22,25 +16,8 @@ from retico_core.audio import MicrophonePTTModule
 
 from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
 
-from retico_conversational_agent.dialogue_history import DialogueHistory
-from retico_conversational_agent.VAD_DM import VadModule
-from retico_conversational_agent.ASR_DM import AsrDmModule
-from retico_conversational_agent.LLM_DM import LlmDmModule
-from retico_conversational_agent.TTS_DM import TtsDmModule
-from retico_conversational_agent.Speaker_DM import SpeakerDmModule
-from retico_conversational_agent.dialogue_manager import (
-    DialogueManagerModule,
-    DialogueManagerModule_2,
-)
-from retico_conversational_agent.additional_IUs import (
-    DMIU,
-    SpeakerAlignementIU,
-    TextAlignedAudioIU,
-)
+import retico_conversational_agent as agent
 from retico_conversational_agent.main_cleps import main_DM_remote_computing_remote, main_DM_remote_computing_local
-
-from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
-from retico_amq.utils import define_amq_network
 
 
 def test_cuda(module_names=["llm"]):
@@ -79,14 +56,14 @@ def test_cuda(module_names=["llm"]):
     for module_name in module_names:
         if module_name == "llm":
             print("llm init")
-            dialogue_history = DialogueHistory(
+            dialogue_history = agent.DialogueHistory(
                 prompt_format_config,
                 terminal_logger=terminal_logger,
                 initial_system_prompt=system_prompt,
                 context_size=context_size,
             )
 
-            llm = LlmDmModule(
+            llm = agent.LlmDmModule(
                 # None,
                 # model_repo,
                 # model_name,
@@ -100,7 +77,7 @@ def test_cuda(module_names=["llm"]):
             modules.append(llm)
 
         elif module_name == "tts":
-            tts = TtsDmModule(
+            tts = agent.TtsDmModule(
                 language="en",
                 model=tts_model,
                 printing=False,
@@ -111,7 +88,7 @@ def test_cuda(module_names=["llm"]):
             modules.append(tts)
 
         elif module_name == "asr":
-            asr = AsrDmModule(
+            asr = agent.AsrDmModule(
                 device=device,
                 full_sentences=True,
                 input_framerate=rate,
@@ -220,7 +197,7 @@ def main_DM():
         window_duration=30,
     )
 
-    dialogue_history = DialogueHistory(
+    dialogue_history = agent.DialogueHistory(
         prompt_format_config,
         terminal_logger=terminal_logger,
         initial_system_prompt=system_prompt,
@@ -234,12 +211,12 @@ def main_DM():
     # mic = WozMicrophoneModule(frame_length=frame_length)
     mic = WOZMicrophoneModule(frame_length=frame_length)
 
-    vad = VadModule(
+    vad = agent.VadModule(
         input_framerate=rate,
         frame_length=frame_length,
     )
 
-    dm = DialogueManagerModule(
+    dm = agent.DialogueManagerModule(
         dialogue_history=dialogue_history,
         input_framerate=rate,
         frame_length=frame_length,
@@ -254,13 +231,13 @@ def main_DM():
     dm.add_continue_policy()
     # dm.add_backchannel_policy()
 
-    asr = AsrDmModule(
+    asr = agent.AsrDmModule(
         device=device,
         full_sentences=True,
         input_framerate=rate,
     )
 
-    llm = LlmDmModule(
+    llm = agent.LlmDmModule(
         model_path,
         None,
         None,
@@ -270,7 +247,7 @@ def main_DM():
         verbose=True,
     )
 
-    tts = TtsDmModule(
+    tts = agent.TtsDmModule(
         language="en",
         model=tts_model,
         printing=printing,
@@ -278,7 +255,7 @@ def main_DM():
         device=device,
     )
 
-    speaker = SpeakerDmModule(
+    speaker = agent.SpeakerDmModule(
         rate=tts_model_samplerate,
     )
 

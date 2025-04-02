@@ -23,13 +23,11 @@ Outputs : TextAlignedAudioIU
 """
 
 import platform
-import time
 import pyaudio
 
 import retico_core
-import retico_core.abstract
 
-from retico_conversational_agent.additional_IUs import (
+from .additional_IUs import (
     BackchannelIU,
     VADTurnAudioIU,
     TextAlignedAudioIU,
@@ -38,7 +36,7 @@ from retico_conversational_agent.additional_IUs import (
 )
 
 
-class SpeakerDmModule(retico_core.AbstractModule):
+class SpeakerDmModule(retico_core.abstract.AbstractModule):
     """A retico module that outputs through the computer's speakers the audio contained in
     TextAlignedAudioIUs. The module stops the speakers if it receives the information that the user
     started talking (user barge-in/interruption of agent turn).

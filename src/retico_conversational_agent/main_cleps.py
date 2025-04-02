@@ -6,7 +6,7 @@ import torch
 import argparse
 
 import retico_core
-from retico_core import network, audio
+from retico_core import network
 from retico_core.log_utils import (
     filter_cases,
     configurate_plot,
@@ -14,20 +14,12 @@ from retico_core.log_utils import (
 )
 from retico_core.audio import MicrophonePTTModule
 
-from retico_amq.amq import AMQReader, AMQWriter, AMQBridge, AMQReaderBytes, AMQWriterBytes
-from retico_amq.utils import define_amq_network
+from retico_amq import define_amq_network
 
 from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
-from retico_conversational_agent.dialogue_history import DialogueHistory
-from retico_conversational_agent.VAD_DM import VadModule
-from retico_conversational_agent.ASR_DM import AsrDmModule
-from retico_conversational_agent.LLM_DM import LlmDmModule
-from retico_conversational_agent.TTS_DM import TtsDmModule
-from retico_conversational_agent.Speaker_DM import SpeakerDmModule
-from retico_conversational_agent.dialogue_manager import (
-    DialogueManagerModule,
-)
-from retico_conversational_agent.additional_IUs import (
+
+import retico_conversational_agent as agent
+from retico_conversational_agent import (
     DMIU,
     SpeakerAlignementIU,
     TextAlignedAudioIU,
@@ -117,7 +109,7 @@ def main_DM_remote_computing_remote():
         window_duration=30,
     )
 
-    dialogue_history = DialogueHistory(
+    dialogue_history = agent.DialogueHistory(
         prompt_format_config,
         terminal_logger=terminal_logger,
         initial_system_prompt=system_prompt,
@@ -125,12 +117,12 @@ def main_DM_remote_computing_remote():
     )
 
     # create modules
-    vad = VadModule(
+    vad = agent.VadModule(
         input_framerate=rate,
         frame_length=frame_length,
     )
 
-    dm = DialogueManagerModule(
+    dm = agent.DialogueManagerModule(
         dialogue_history=dialogue_history,
         input_framerate=rate,
         frame_length=frame_length,
@@ -139,13 +131,13 @@ def main_DM_remote_computing_remote():
     dm.add_soft_interruption_policy()
     dm.add_continue_policy()
 
-    asr = AsrDmModule(
+    asr = agent.AsrDmModule(
         device=device,
         full_sentences=True,
         input_framerate=rate,
     )
 
-    llm = LlmDmModule(
+    llm = agent.LlmDmModule(
         model_path,
         None,
         None,
@@ -155,7 +147,7 @@ def main_DM_remote_computing_remote():
         verbose=True,
     )
 
-    tts = TtsDmModule(
+    tts = agent.TtsDmModule(
         language="en",
         model=tts_model,
         printing=printing,
@@ -268,7 +260,7 @@ def main_DM_remote_computing_local():
     # mic = audio.MicrophoneModule()
     mic = WOZMicrophoneModule(frame_length=frame_length)
 
-    speaker = SpeakerDmModule(
+    speaker = agent.SpeakerDmModule(
         rate=tts_model_samplerate,
     )
 

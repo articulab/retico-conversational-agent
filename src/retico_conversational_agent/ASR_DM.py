@@ -31,8 +31,9 @@ from faster_whisper import WhisperModel
 import retico_core
 from retico_core.log_utils import log_exception
 
-from retico_conversational_agent.utils import device_definition
-from retico_conversational_agent.additional_IUs import DMIU, SpeechRecognitionTurnIU
+
+from .utils import device_definition
+from .additional_IUs import DMIU, SpeechRecognitionTurnIU
 
 transformers.logging.set_verbosity_error()
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -96,9 +97,7 @@ class AsrDmModule(retico_core.AbstractModule):
 
         # model
         self.device = device_definition(device)
-        self.model = WhisperModel(
-            whisper_model, device=self.device, compute_type="int8"
-        )
+        self.model = WhisperModel(whisper_model, device=self.device, compute_type="int8")
 
         # general
         self._asr_thread_active = False
@@ -119,9 +118,7 @@ class AsrDmModule(retico_core.AbstractModule):
         """
         # faster whisper
         full_audio = b"".join(self.audio_buffer)
-        audio_np = (
-            np.frombuffer(full_audio, dtype=np.int16).astype(np.float32) / 32768.0
-        )
+        audio_np = np.frombuffer(full_audio, dtype=np.int16).astype(np.float32) / 32768.0
         segments, _ = self.model.transcribe(audio_np)  # the segments can be streamed
         segments = list(segments)
         transcription = "".join([s.text for s in segments])
@@ -170,9 +167,7 @@ class AsrDmModule(retico_core.AbstractModule):
                 prediction = self.recognize()
                 self.file_logger.info("predict")
                 if len(prediction) != 0:
-                    um, new_tokens = retico_core.text.get_text_increment(
-                        self, prediction
-                    )
+                    um, new_tokens = retico_core.text.get_text_increment(self, prediction)
                     for i, token in enumerate(new_tokens):
                         output_iu = self.create_iu(
                             grounded_in=self.latest_input_iu,

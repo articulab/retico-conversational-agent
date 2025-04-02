@@ -43,8 +43,8 @@ from transitions import Machine
 
 import retico_core
 
-from retico_conversational_agent.dialogue_history import DialogueHistory
-from retico_conversational_agent.additional_IUs import (
+from .dialogue_history import DialogueHistory
+from .additional_IUs import (
     VADTurnAudioIU,
     DMIU,
     VADIU,
