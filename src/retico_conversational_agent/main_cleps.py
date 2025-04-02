@@ -183,7 +183,9 @@ def main_DM_remote_computing_remote():
             "subscriber_modules": [vad, llm, dm],
         },
     ]
-    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port)
+    define_amq_network(
+        modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port, message_is_bytes=True
+    )
 
     # bridge_dm = AMQBridge([], destination_remote_dm_out)
     # bridge_tts = AMQBridge([], destination_remote_tts_out)
@@ -282,7 +284,9 @@ def main_DM_remote_computing_local():
             "subscriber_modules": [speaker],
         },
     ]
-    define_amq_network(modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port)
+    define_amq_network(
+        modules_out_dict=dict_out, modules_in_dict=dict_in, verbose=printing, ip=ip, port=port, message_is_bytes=True
+    )
 
     # bridge_mic = AMQBridge([], destination_local_mic_out)
     # bridge_spk = AMQBridge([], destination_local_spk_out)

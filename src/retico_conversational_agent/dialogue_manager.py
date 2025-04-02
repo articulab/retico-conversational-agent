@@ -36,18 +36,12 @@ Inputs : AudioIU, TextAlignedAudioIU
 Outputs : VADTurnAudioIU
 """
 
-from collections.abc import Callable
 from functools import partial
-import json
 import random
 import time
-import numpy as np
-import pydub
-import webrtcvad
 from transitions import Machine
 
 import retico_core
-from retico_core.audio import AudioIU
 
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.additional_IUs import (

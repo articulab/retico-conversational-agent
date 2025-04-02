@@ -20,7 +20,6 @@ Inputs : AudioIU, TextIU
 Outputs : VADIU
 """
 
-import pydub
 import webrtcvad
 
 import retico_core

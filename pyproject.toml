@@ -12,13 +12,12 @@ version = "0.0.1"
 requires-python = ">=3.11.7"
 dependencies = [
     "transitions",
-    "keyboard",
     "pydub",
     "webrtcvad",
     "faster_whisper",
     "llama-cpp-python",
-    "retico-wozmic @ git+https://github.com/articulab/retico-wozmic.git",
     "retico-core @ git+https://github.com/articulab/retico-core.git",
+    "retico-wozmic @ git+https://github.com/articulab/retico-wozmic.git",
     "retico-amq @ git+https://github.com/articulab/retico-amq.git",
     # "TTS[py3117] @ git+https://github.com/articulab/CoquiTTS.git@dev",
     "TTS[versionless] @ git+https://github.com/articulab/CoquiTTS",
