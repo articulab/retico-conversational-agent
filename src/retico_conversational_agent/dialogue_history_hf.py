@@ -55,10 +55,8 @@ Child : I am fine, and I can't wait to learn mathematics!
 Teacher :"
 """
 
-import json
 
-
-class DialogueHistory:
+class DialogueHistoryHF:
     """The dialogue history is where all the sentences from the previvous agent
     and user turns will be stored.
 
@@ -68,7 +66,6 @@ class DialogueHistory:
 
     def __init__(
         self,
-        prompt_format_config_file,
         terminal_logger,
         file_logger=None,
         context_size=2000,
@@ -78,8 +75,6 @@ class DialogueHistory:
         """Initializes the DialogueHistory.
 
         Args:
-            prompt_format_config_file (str): path to prompt template
-                config file.
             terminal_logger (TerminalLogger): The logger used to print
                 events in console.
             file_logger (FileLogger, optional): The logger used to store
@@ -95,80 +90,23 @@ class DialogueHistory:
         self.file_logger = file_logger
         self.cpt_0 = 1
         self.context_size = context_size
-        with open(prompt_format_config_file, "r", encoding="utf-8") as config:
-            self.prompt_format_config = json.load(config)
+        # with open(prompt_format_config_file, "r", encoding="utf-8") as config:
+        #     self.prompt_format_config = json.load(config)
         if initial_dh is not None:
             self.dialogue_history = initial_dh
-            if initial_dh[0]["speaker"] == "system_prompt":
-                self.initial_system_prompt = initial_dh[0]["text"]
-                self.current_system_prompt = initial_dh[0]["text"]
+            if initial_dh[0]["role"] == "system_prompt":
+                self.initial_system_prompt = initial_dh[0]["content"]
+                self.current_system_prompt = initial_dh[0]["content"]
         else:
             self.initial_system_prompt = initial_system_prompt
             self.current_system_prompt = initial_system_prompt
             self.dialogue_history = [
                 {
                     "turn_id": -1,
-                    "speaker": "system_prompt",
-                    "text": initial_system_prompt,
+                    "role": "system_prompt",
+                    "content": initial_system_prompt,
                 }
             ]
-
-    # Formatters
-
-    def format_role(self, config_id):
-        """Function that format a sentence by adding the role and role
-        separation.
-
-        Args:
-            config_id (str): the id to find the corresponding prefix,
-                suffix, etc in the config.
-
-        Returns:
-            str: the formatted sentence.
-        """
-        if "role" in self.prompt_format_config[config_id]:
-            return (
-                self.prompt_format_config[config_id]["role"]
-                + " "
-                + self.prompt_format_config[config_id]["role_sep"]
-                + " "
-            )
-        else:
-            return ""
-
-    def format(self, config_id, text):
-        """Basic function to format a text with regards to the
-        prompt_format_config. Format meaning to add prefix, sufix, role, etc to
-        the text (for agent or user sentence, system prompt, etc).
-
-        Args:
-            config_id (str): the id to find the corresponding prefix,
-                suffix, etc in the config.
-            text (str): the text to format with the
-                prompt_format_config.
-
-        Returns:
-            str: the formatted text.
-        """
-        return (
-            self.prompt_format_config[config_id]["pre"]
-            + self.format_role(config_id)
-            + text
-            + self.prompt_format_config[config_id]["suf"]
-        )
-
-    def format_sentence(self, utterance):
-        """Function that formats utterance, to whether an agent or a user
-        sentence.
-
-        Args:
-            utterance (dict[str]): a dictionary describing the utterance
-                to format (speaker, and text).
-
-        Returns:
-            str: the formatted sentence.
-        """
-        return self.format(config_id=utterance["speaker"], text=utterance["text"])
 
     # Setters
 
@@ -179,13 +117,11 @@ class DialogueHistory:
             utterance (dict): a dict containing the speaker and the
                 turn's transcription (text of the sentences).
         """
-        assert set(("turn_id", "speaker", "text")) <= set(utterance)
+        assert set(("turn_id", "role", "content")) <= set(utterance)
         # insure that turn_id is not None, and increment turn_id for system that do not have a turn id cpt (like DM).
-        utterance["turn_id"] = len(self.dialogue_history) if utterance["turn_id"] else utterance["turn_id"]
+        utterance["turn_id"] = len(self.dialogue_history) if utterance["turn_id"] is None else utterance["turn_id"]
         self.dialogue_history.append(utterance)
-        c = self.prompt_format_config
-        s = utterance["speaker"]
-        print(f"\n{c[s]['role']} {c[s]['role_sep']} {utterance['text']}")
+        print(f"\n{utterance['role']} : {utterance['content']}")
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
@@ -205,8 +141,39 @@ class DialogueHistory:
         """
         previous_system_prompt = self.current_system_prompt
         self.current_system_prompt = system_prompt
-        self.dialogue_history[0]["text"] = system_prompt
+        self.dialogue_history[0]["content"] = system_prompt
         return previous_system_prompt
+
+    def get_prompt(self, fun_tokenize, start=1, end=None):
+        """Get the formatted prompt containing all turns between start and end.
+
+        Args:
+            start (int, optional): start id of the oldest turn to take.
+                Defaults to 1.
+            end (int, optional): end id of the latest turn to take.
+                Defaults to None.
+
+        Returns:
+            List[int]: the corresponding formatted prompt tokens.
+        """
+        if end is None:
+            end = len(self.dialogue_history)
+        print("start : ", start, " end : ", end)
+        if end <= start:
+            return []
+
+        if self.dialogue_history[0]["role"] == "system":
+            system_prompt = [self.dialogue_history[0]]
+        else:
+            print("no system prompt")
+            system_prompt = []
+
+        return fun_tokenize(
+            system_prompt + self.dialogue_history[start:end],
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        )[0]
 
     def prepare_dialogue_history(self, fun_tokenize):
         """Calculate if the current dialogue history is bigger than the LLM's
@@ -222,22 +189,20 @@ class DialogueHistory:
                 right dialogue_history size.
 
         Returns:
-            (text, int): the prompt to give to the LLM (containing the
-                formatted system prompt, and a maximum of formatted
-                previous sentences), and it's size in nb of token.
+            (List[int]): the prompt tokens to give the LLM.
         """
 
-        prompt = self.get_prompt(self.cpt_0)
-        prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
+        prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
         nb_tokens = len(prompt_tokens)
         print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         while nb_tokens > self.context_size:
-            self.cpt_0 += 1
-            prompt = self.get_prompt(self.cpt_0)
-            prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
+            self.cpt_0 += 2
+            if self.cpt_0 >= len(self.dialogue_history):
+                raise ValueError("System prompt is too long, please increase the context size or cut system prompt.")
+            prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
             nb_tokens = len(prompt_tokens)
             print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
-        return prompt, prompt_tokens
+        return prompt_tokens
 
     def interruption_alignment_new_agent_sentence(self, utterance, punctuation_ids, interrupted_speaker_iu):
         """After an interruption, this function will align the sentence stored
@@ -256,7 +221,7 @@ class DialogueHistory:
                 SpeakerModule's IncrementalUnit, used to align the agent
                 utterance.
         """
-        new_agent_sentence = utterance["text"].encode("utf-8")
+        new_agent_sentence = utterance["content"].encode("utf-8")
 
         # split the sentence into clauses
         sentence_clauses = []
@@ -286,7 +251,7 @@ class DialogueHistory:
         )
 
         # store the new sentence in the dialogue history
-        utterance["text"] = new_agent_sentence
+        utterance["content"] = new_agent_sentence
         self.append_utterance(utterance)
 
         print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
@@ -301,49 +266,3 @@ class DialogueHistory:
             dict: DialogueHistory's dictionary.
         """
         return self.dialogue_history
-
-    def get_prompt(self, start=1, end=None, system_prompt=None):
-        """Get the formatted prompt containing all turns between start and end.
-
-        Args:
-            start (int, optional): start id of the oldest turn to take.
-                Defaults to 1.
-            end (int, optional): end id of the latest turn to take.
-                Defaults to None.
-
-        Returns:
-            str: the corresponding formatted prompt.
-        """
-        if end is None:
-            end = len(self.dialogue_history)
-        print("start : ", start, " end : ", end)
-        assert start > 0
-        assert end >= start
-        if system_prompt is not None:
-            prompt = self.format("system_prompt", system_prompt)
-        else:
-            prompt = self.format_sentence(self.dialogue_history[0])
-        for utterance in self.dialogue_history[start:end]:
-            prompt += self.format_sentence(utterance)
-        prompt = self.format("prompt", prompt)
-
-        # put additional "/n/nTeacher :" at the end of the prompt, so that it is not the LLM that generates the role
-        prompt += "\n\n" + self.prompt_format_config["agent"]["pre"] + self.format_role("agent")
-        return prompt
-
-    def get_stop_patterns(self):
-        """Get stop patterns for both user and agent.
-
-        Returns:
-            tuple[bytes], tuple[bytes]: user and agent stop patterns.
-        """
-        c = self.prompt_format_config
-        user_stop_pat = (
-            bytes(c["user"]["role"] + " " + c["user"]["role_sep"], encoding="utf-8"),
-            bytes(c["user"]["role"] + "" + c["user"]["role_sep"], encoding="utf-8"),
-        )
-        agent_stop_pat = (
-            bytes(c["agent"]["role"] + " " + c["agent"]["role_sep"], encoding="utf-8"),
-            bytes(c["agent"]["role"] + "" + c["agent"]["role_sep"], encoding="utf-8"),
-        )
-        return (user_stop_pat, agent_stop_pat)
