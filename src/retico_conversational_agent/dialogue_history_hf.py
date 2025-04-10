@@ -168,12 +168,16 @@ class DialogueHistoryHF:
             print("no system prompt")
             system_prompt = []
 
-        return fun_tokenize(
-            system_prompt + self.dialogue_history[start:end],
-            tokenize=True,
-            add_generation_prompt=True,
-            return_tensors="pt",
-        )[0]
+        dh = system_prompt + self.dialogue_history[start:end]
+        return (
+            dh,
+            fun_tokenize(
+                dh,
+                tokenize=True,
+                add_generation_prompt=True,
+                return_tensors="pt",
+            )[0],
+        )
 
     def prepare_dialogue_history(self, fun_tokenize):
         """Calculate if the current dialogue history is bigger than the LLM's
@@ -192,17 +196,17 @@ class DialogueHistoryHF:
             (List[int]): the prompt tokens to give the LLM.
         """
 
-        prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
+        dh, prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
         nb_tokens = len(prompt_tokens)
         print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         while nb_tokens > self.context_size:
             self.cpt_0 += 2
             if self.cpt_0 >= len(self.dialogue_history):
                 raise ValueError("System prompt is too long, please increase the context size or cut system prompt.")
-            prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
+            dh, prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
             nb_tokens = len(prompt_tokens)
             print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
-        return prompt_tokens
+        return prompt_tokens, dh
 
     def interruption_alignment_new_agent_sentence(self, utterance, punctuation_ids, interrupted_speaker_iu):
         """After an interruption, this function will align the sentence stored

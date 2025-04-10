@@ -6,9 +6,9 @@ import retico_conversational_agent as agent
 from retico_core.log_utils import (
     filter_cases,
 )
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from retico_conversational_agent.dialogue_history_hf import DialogueHistoryHF
+from dialogue_history_hf import DialogueHistoryHF
 
 # parameters
 filters = [
@@ -63,9 +63,22 @@ models = {
         "mistralai/Mistral-7B-Instruct-v0.2",
     ],
     "llama2_7B": [["TheBloke/Llama-2-7b-Chat-GGUF", "llama-2-7b-chat.q4_K_M.gguf"], "meta-llama/Llama-2-7b-chat-hf"],
+    "llama3.1_8B": [
+        ["QuantFactory/Meta-Llama-3.1-8B-GGUF", "Meta-Llama-3.1-8B.Q4_K_M.gguf"],
+        "meta-llama/Llama-3.1-8B",
+    ],
+    "llama3.1_8B_I": [
+        ["QuantFactory/Meta-Llama-3.1-8B-Instruct-GGUF", "Meta-Llama-3.1-8B-Instruct.Q4_K_M.gguf"],
+        "meta-llama/Llama-3.1-8B-Instruct",
+    ],
+    "llama3.2_3B": [["QuantFactory/Llama-3.2-3B-GGUF", "Llama-3.2-3B.Q4_K_M.gguf"], "meta-llama/Llama-3.2-3B"],
+    "llama3.2_3B_I": [
+        ["QuantFactory/Llama-3.2-3B-Instruct-GGUF", "Llama-3.2-3B-Instruct.Q4_K_M.gguf"],
+        "meta-llama/Llama-3.2-3B-Instruct",
+    ],
 }
-hf_token = "secret"
-model = models["llama2_7B"]
+hf_token = ""
+model = models["llama3.1_8B_I"]
 # agent
 # llama_cpp = Llama(
 #     model_path=model_path,
@@ -74,7 +87,7 @@ model = models["llama2_7B"]
 #     verbose=verbose,
 # )
 
-llama_cpp = Llama.from_pretrained(
+tokenizer = Llama.from_pretrained(
     repo_id=model[0][0],
     filename=model[0][1],
     device_map=device,
@@ -82,18 +95,7 @@ llama_cpp = Llama.from_pretrained(
     n_gpu_layers=n_gpu_layers,
     verbose=verbose,
 )
-
-print(len(llama_cpp.tokenize(system_prompt.encode("utf-8"))))
-
-
-dh = agent.DialogueHistory(
-    prompt_format_config,
-    terminal_logger=terminal_logger,
-    initial_dh=chat_2,
-    context_size=context_size,
-)
-
-prompt_dh, tokens = dh.prepare_dialogue_history(llama_cpp.tokenize)
+model = tokenizer
 
 # hf
 dh_hf = DialogueHistoryHF(
@@ -101,19 +103,51 @@ dh_hf = DialogueHistoryHF(
     initial_dh=chat,
     context_size=context_size,
 )
-tokenizer = AutoTokenizer.from_pretrained(model[1], token=hf_token)
-tokenized_prompt_1 = tokenizer.apply_chat_template(
-    chat,
-    tokenize=True,
-    add_generation_prompt=False,
-    return_tensors="pt",
-    max_length=context_size,
-    truncation=True,
-)
-prompt_1 = tokenizer.decode(tokenized_prompt_1[0])
-prompt_2_tokens = dh_hf.prepare_dialogue_history(tokenizer.apply_chat_template)
-prompt_2 = tokenizer.decode(prompt_2_tokens)
+tokenizer_hf = AutoTokenizer.from_pretrained(model[1], token=hf_token)
+# model_hf = AutoModelForCausalLM.from_pretrained(model[1], token=hf_token)
+
+
+### PROMPTS
+# print(len(llama_cpp.tokenize(system_prompt.encode("utf-8"))))
+# dh = agent.DialogueHistory(
+#     prompt_format_config,
+#     terminal_logger=terminal_logger,
+#     initial_dh=chat_2,
+#     context_size=context_size,
+# )
+# prompt_dh, tokens = dh.prepare_dialogue_history(llama_cpp.tokenize)
+# prompt_1_tokens = tokenizer_hf.apply_chat_template(
+#     chat,
+#     tokenize=True,
+#     add_generation_prompt=False,
+#     return_tensors="pt",
+#     max_length=context_size,
+#     truncation=True,
+# )[0]
+# prompt_1 = tokenizer_hf.decode(prompt_1_tokens)
+prompt_2_tokens, dh = dh_hf.prepare_dialogue_history(tokenizer_hf.apply_chat_template)
+prompt_2 = tokenizer_hf.decode(prompt_2_tokens)
 # prints
-print("\n\nPrompt DH : ", prompt_dh)
-print("\n\nPrompt 1 : ", prompt_1)
-print("\n\nPrompt 2 : ", prompt_2)
+# print(f"\n\nPrompt DH (nb tokens = {len(tokens)}): ", prompt_dh)
+# print(f"\n\nPrompt 1 (nb tokens = {len(prompt_1_tokens)}) : ", prompt_1)
+print(f"\n\nPrompt 2 (nb tokens = {len(prompt_2_tokens)}): ", prompt_2)
+
+
+### Generation
+
+# method one with generate
+out_tokens = model.generate(prompt_2_tokens, max_new_tokens=100)
+out_sentence = tokenizer_hf.decode(out_tokens[0])
+out_sentence_2 = tokenizer.detokenize([out_tokens[0]]).decode("utf-8", errors="ignore")
+print("\n\nOut sentence : ", out_sentence)
+print("\n\nOut sentence 2 : ", out_sentence_2)
+print("\n\nOut nb tokens : ", len(out_tokens))
+
+# method 2 with chat completion
+out_tokens = model.create_chat_completion(dh, max_new_tokens=100)
+out_sentence = tokenizer_hf.decode(out_tokens[0])
+out_sentence = tokenizer.detokenize([out_tokens[0]])
+out_sentence_2 = tokenizer.detokenize([out_tokens[0]]).decode("utf-8", errors="ignore")
+print("\n\nOut sentence : ", out_sentence)
+print("\n\nOut sentence 2 : ", out_sentence_2)
+print("\n\nOut nb tokens : ", len(out_tokens))

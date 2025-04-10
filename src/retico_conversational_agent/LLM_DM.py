@@ -68,6 +68,7 @@ from retico_core.text import SpeechRecognitionIU
 from retico_core.log_utils import log_exception
 
 from .dialogue_history import DialogueHistory
+from .dialogue_history_hf import DialogueHistoryHF
 from .utils import device_definition
 from .additional_IUs import (
     VADTurnAudioIU,
