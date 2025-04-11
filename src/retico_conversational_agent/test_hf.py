@@ -1,5 +1,5 @@
 from functools import partial
-from llama_cpp import Llama
+from llama_cpp import Llama, llama_chat_format
 import retico_core
 import torch
 import retico_conversational_agent as agent
@@ -8,7 +8,7 @@ from retico_core.log_utils import (
 )
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from dialogue_history_hf import DialogueHistoryHF
+from dialogue_history_hf import DialogueHistoryHf
 
 # parameters
 filters = [
@@ -25,24 +25,26 @@ log_folder = "logs/run"
 terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
 prompt_format_config = "configs/prompt_format_config.json"
 # context_size = 2048
-context_size = 250
-n_gpu_layers = 100
+context_size = 450
+dh_size = 250
+# n_gpu_layers = 100
+n_gpu_layers = 0
 device = "cuda" if torch.cuda.is_available() else "cpu"
-verbose = False
+verbose = True
 system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student. The teacher is teaching mathemathics to the child student. As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the following conversation. You play the role of a teacher. Here is the beginning of the conversation :"
 chat = [
     {"role": "system", "content": system_prompt, "turn_id": -1},
     {"role": "user", "content": "Hello, how are you?", "turn_id": 0},
     {"role": "assistant", "content": "I'm doing great. How can I help you today?", "turn_id": 1},
-    {"role": "user", "content": "I'd like to show off how chat templating works!", "turn_id": 2},
+    {"role": "user", "content": "5 I'd like to show off how chat templating works!", "turn_id": 2},
     {"role": "assistant", "content": "I'm doing great. How can I help you today?", "turn_id": 3},
-    {"role": "user", "content": "I'd like to show off how chat templating works!", "turn_id": 4},
+    {"role": "user", "content": "4 I'd like to show off how chat templating works!", "turn_id": 4},
     {"role": "assistant", "content": "I'm doing great. How can I help you today?", "turn_id": 5},
-    {"role": "user", "content": "I'd like to show off how chat templating works!", "turn_id": 6},
+    {"role": "user", "content": "3 I'd like to show off how chat templating works!", "turn_id": 6},
     {"role": "assistant", "content": "I'm doing great. How can I help you today?", "turn_id": 7},
-    {"role": "user", "content": "I'd like to show off how chat templating works!", "turn_id": 8},
+    {"role": "user", "content": "2 I'd like to show off how chat templating works!", "turn_id": 8},
     {"role": "assistant", "content": "I'm doing great. How can I help you today?", "turn_id": 9},
-    {"role": "user", "content": "I'd like to show off how chat templating works!", "turn_id": 10},
+    {"role": "user", "content": "1 I'd like to show off how chat templating works!", "turn_id": 10},
 ]
 chat_2 = [c.copy() for c in chat]
 for idc, c in enumerate(chat_2):
@@ -95,59 +97,83 @@ tokenizer = Llama.from_pretrained(
     n_gpu_layers=n_gpu_layers,
     verbose=verbose,
 )
-model = tokenizer
+generator = tokenizer
+formatter = (
+    (
+        generator.chat_handler
+        or generator._chat_handlers.get(generator.chat_format)
+        or llama_chat_format.get_chat_completion_handler(generator.chat_format)
+    )
+    .__closure__[0]
+    .cell_contents
+)
+
+
+def apply_chat_template_f(messages, model, formatter):
+    result = formatter(messages=messages)
+    prompt = model.tokenize(
+        result.prompt.encode("utf-8"),
+        add_bos=not result.added_special,
+        special=True,
+    )
+    return prompt
+
 
 # hf
-dh_hf = DialogueHistoryHF(
+dh_hf = DialogueHistoryHf(
     terminal_logger=terminal_logger,
     initial_dh=chat,
-    context_size=context_size,
+    context_size=dh_size,
 )
 tokenizer_hf = AutoTokenizer.from_pretrained(model[1], token=hf_token)
-# model_hf = AutoModelForCausalLM.from_pretrained(model[1], token=hf_token)
 
+apply_chat_template_2 = partial(apply_chat_template_f, model=generator, formatter=formatter)
+apply_chat_template_3 = partial(tokenizer_hf.apply_chat_template, tokenize=True, add_generation_prompt=True)
+# generator_hf = AutoModelForCausalLM.from_pretrained(model[1], token=hf_token)
+print("chat formatted", apply_chat_template_2(chat))
+print("chat formatted", apply_chat_template_3(chat))
 
 ### PROMPTS
-# print(len(llama_cpp.tokenize(system_prompt.encode("utf-8"))))
-# dh = agent.DialogueHistory(
-#     prompt_format_config,
-#     terminal_logger=terminal_logger,
-#     initial_dh=chat_2,
-#     context_size=context_size,
-# )
-# prompt_dh, tokens = dh.prepare_dialogue_history(llama_cpp.tokenize)
-# prompt_1_tokens = tokenizer_hf.apply_chat_template(
-#     chat,
-#     tokenize=True,
-#     add_generation_prompt=False,
-#     return_tensors="pt",
-#     max_length=context_size,
-#     truncation=True,
-# )[0]
-# prompt_1 = tokenizer_hf.decode(prompt_1_tokens)
-prompt_2_tokens, dh = dh_hf.prepare_dialogue_history(tokenizer_hf.apply_chat_template)
+
+prompt_2_tokens, history = dh_hf.prepare_dialogue_history(apply_chat_template_2)
 prompt_2 = tokenizer_hf.decode(prompt_2_tokens)
-# prints
-# print(f"\n\nPrompt DH (nb tokens = {len(tokens)}): ", prompt_dh)
-# print(f"\n\nPrompt 1 (nb tokens = {len(prompt_1_tokens)}) : ", prompt_1)
 print(f"\n\nPrompt 2 (nb tokens = {len(prompt_2_tokens)}): ", prompt_2)
+prompt_2_tokens, history = dh_hf.prepare_dialogue_history(apply_chat_template_3)
+prompt_2 = tokenizer_hf.decode(prompt_2_tokens)
+print(f"\n\nPrompt 3 (nb tokens = {len(prompt_2_tokens)}): ", prompt_2)
+
+# ### Generation
+
+# # method 1 with generate
+# print("EOS TOKENS", generator.token_eos())
 
 
-### Generation
+# def stop_function(tokens, logits):
+#     return tokens[-1] == generator.token_eos()
 
-# method one with generate
-out_tokens = model.generate(prompt_2_tokens, max_new_tokens=100)
-out_sentence = tokenizer_hf.decode(out_tokens[0])
-out_sentence_2 = tokenizer.detokenize([out_tokens[0]]).decode("utf-8", errors="ignore")
-print("\n\nOut sentence : ", out_sentence)
-print("\n\nOut sentence 2 : ", out_sentence_2)
-print("\n\nOut nb tokens : ", len(out_tokens))
 
-# method 2 with chat completion
-out_tokens = model.create_chat_completion(dh, max_new_tokens=100)
-out_sentence = tokenizer_hf.decode(out_tokens[0])
-out_sentence = tokenizer.detokenize([out_tokens[0]])
-out_sentence_2 = tokenizer.detokenize([out_tokens[0]]).decode("utf-8", errors="ignore")
-print("\n\nOut sentence : ", out_sentence)
-print("\n\nOut sentence 2 : ", out_sentence_2)
-print("\n\nOut nb tokens : ", len(out_tokens))
+# out_tokens = []
+# try:
+#     for token in generator.generate(prompt_2_tokens, stopping_criteria=stop_function):
+#         out_tokens.append(token)
+#         # out_tokens = torch.stack(out_tokens).squeeze(0).tolist()
+#         if len(out_tokens) >= 100:
+#             break
+# except Exception as e:
+#     print("Exception : ", e)
+
+# out_sentence = tokenizer_hf.decode(out_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+# out_sentence_2 = tokenizer.detokenize(out_tokens).decode("utf-8", errors="ignore")
+# print("\n\nOut sentence : ", out_sentence)
+# print("\n\nOut sentence 2 : ", out_sentence_2)
+# print("\n\nOut nb tokens : ", len(out_tokens))
+
+# # method 2 with chat completion
+# result = generator.create_chat_completion(history, max_tokens=100)
+# print("\n\nOut tokens : ", result)
+# nb_tokens = result["usage"]["completion_tokens"]
+# message = result["choices"][0]["message"]
+# stop_reason = result["choices"][0]["finish_reason"]
+# print("\n\nOut sentence : ", message)
+# print("\n\nstop_reason : ", stop_reason)
+# print("\n\nOut nb tokens : ", nb_tokens)

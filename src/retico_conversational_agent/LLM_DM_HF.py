@@ -61,13 +61,12 @@ Teacher :"
 
 import threading
 import time
-from llama_cpp import Llama
+from llama_cpp import Llama, llama_chat_format
 
 import retico_core
 from retico_core.text import SpeechRecognitionIU
 from retico_core.log_utils import log_exception
 
-from .dialogue_history import DialogueHistory
 from .dialogue_history_hf import DialogueHistoryHf
 from .utils import device_definition
 from .additional_IUs import (
@@ -79,7 +78,7 @@ from .additional_IUs import (
 )
 
 
-class LlmDmModule(retico_core.AbstractModule):
+class LlmDmModuleHf(retico_core.AbstractModule):
     """A retico module that provides Natural Language Generation (NLG) using a
     Large Language Model (LLM), and handles user interruption.
 
@@ -120,7 +119,7 @@ class LlmDmModule(retico_core.AbstractModule):
 
     @staticmethod
     def name():
-        return "LLM DM Module"
+        return "LLM DM HF Module"
 
     @staticmethod
     def description():
@@ -145,7 +144,8 @@ class LlmDmModule(retico_core.AbstractModule):
         model_path,
         model_repo,
         model_name,
-        dialogue_history: DialogueHistory,
+        dialogue_history: DialogueHistoryHf,
+        use_chat_completion=False,
         device=None,
         context_size=2000,
         n_gpu_layers=100,
@@ -196,6 +196,7 @@ class LlmDmModule(retico_core.AbstractModule):
         self.model_path = model_path
         self.model_repo = model_repo
         self.model_name = model_name
+        self.use_chat_completion = use_chat_completion
         self.context_size = context_size
         self.device = device_definition(device)
         self.n_gpu_layers = 0 if self.device != "cuda" else n_gpu_layers
@@ -204,6 +205,7 @@ class LlmDmModule(retico_core.AbstractModule):
         self.temp = temp
         self.repeat_penalty = repeat_penalty
         self.verbose = verbose
+        self.chat_formatter = None
 
         # general
         self.thread_active = False
@@ -217,15 +219,7 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history = dialogue_history
 
         # stop generation conditions
-        self.stop_token_ids = []
-        self.stop_token_patterns = []
-        self.stop_token_text_patterns = []
-        self.role_token_patterns = []
-        self.role_token_text_patterns = []
-        self.max_role_pattern_length = None
-        self.punctuation_text = [b".", b",", b";", b":", b"!", b"?", b"..."]
-        self.punctuation_ids = [b[0] for b in self.punctuation_text]
-
+        self.punctuation_text = [".", ",", ";", ":", "!", "?"]  # "..."
         self.last_turn_agent_sentence = None
         self.last_turn_agent_sentence_nb_token = None
         self.last_turn_agent_sentence_turn_id = None
@@ -235,30 +229,21 @@ class LlmDmModule(retico_core.AbstractModule):
     # LLM MODULE
     #######
 
-    def init_stop_criteria(self):
-        """Calculates the stopping token patterns using the instantiated model
-        tokenizer."""
-        self.stop_token_ids.append(self.model.token_eos())
-        self.stop_token_text_patterns, self.role_token_text_patterns = self.dialogue_history.get_stop_patterns()
-        self.max_role_pattern_length = max([len(p) for p in self.role_token_text_patterns])
-        for pat in self.stop_token_text_patterns:
-            self.stop_token_patterns.append(self.model.tokenize(pat, add_bos=False))
-        for pat in self.role_token_text_patterns:
-            self.role_token_patterns.append(self.model.tokenize(pat, add_bos=False))
+    def apply_chat_template_f(self, messages):
+        result = self.chat_formatter(messages=messages)
+        prompt = self.model.tokenize(
+            result.prompt.encode("utf-8"),
+            add_bos=not result.added_special,
+            special=True,
+        )
+        return prompt
 
-    def new_user_sentence(self, user_sentence):
-        """Function called to register a new user sentence into the dialogue
-        history (utterances attribute). Calculates the exact token number added
-        to the dialogue history (with template prefixes and suffixes).
-
-        Args:
-            user_sentence (string): the new user sentence to register.
-        """
+    def new_user_sentence(self):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": self.current_input[-1].turn_id,
-                "speaker": "user",
-                "text": user_sentence,
+                "role": "user",
+                "content": " ".join([iu.payload for iu in self.current_input]),
             }
         )
 
@@ -276,8 +261,8 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": turn_id,
-                "speaker": "agent",
-                "text": agent_sentence,
+                "role": "assistant",
+                "content": agent_sentence,
             }
         )
 
@@ -302,11 +287,11 @@ class LlmDmModule(retico_core.AbstractModule):
         """
         utterance = {
             "turn_id": self.interrupted_speaker_iu.turn_id,
-            "speaker": "agent",
-            "text": new_agent_sentence,
+            "role": "assistant",
+            "content": new_agent_sentence,
         }
         self.dialogue_history.interruption_alignment_new_agent_sentence(
-            utterance, self.punctuation_ids, self.interrupted_speaker_iu
+            utterance, self.punctuation_text, self.interrupted_speaker_iu
         )
 
     def interruption_alignment_last_agent_sentence(self, iu):
@@ -335,168 +320,60 @@ class LlmDmModule(retico_core.AbstractModule):
         # check if the sentence we want to align has been stored in self.last_turn_agent_sentence
         if self.last_turn_agent_sentence_turn_id:
             if self.last_turn_agent_sentence_turn_id == iu.turn_id:
-                self.interruption_alignment_new_agent_sentence(self.last_turn_agent_sentence.decode("utf-8"))
+                self.interruption_alignment_new_agent_sentence(self.last_turn_agent_sentence)
 
-    def remove_stop_patterns(self, sentence, pattern_id):
-        """Function called when a stopping token pattern has been encountered
-        during the sentence generation. Remove the encountered pattern from the
-        generated sentence.
-
-        Args:
-            sentence (string): Agent new generated sentence containing a
-                stopping token pattern.
-
-        Returns:
-            string: Agent new generated sentence without the stopping
-                token pattern encountered. int: nb tokens removed (from
-                the stopping token pattern).
-        """
-        sentence = sentence[: -len(self.stop_token_text_patterns[pattern_id])]
-        nb_token_removed = len(self.stop_token_patterns[pattern_id])
-        while sentence[-1:] == b"\n":
-            sentence = sentence[:-1]
-            nb_token_removed += 1
-        return sentence, nb_token_removed
-
-    def identify_and_remove_stop_patterns(self, sentence):
-        """Function called when a stopping token pattern has been encountered
-        during the sentence generation. Remove the encountered pattern from the
-        generated sentence.
+    def generate_next_sentence(self, prompt_tokens):
+        """Generates the agent next sentence from the constructed prompt
+        (dialogue scenario, dialogue history, instruct...). At each generated
+        token, check is the end of the sentence corresponds to a stopping
+        pattern, role pattern, or punctuation. Sends the info to the retico
+        Module using the submodule function. Stops the generation if a stopping
+        token pattern is encountered (using the
+        stop_multiple_utterances_generation as the stopping criteria).
 
         Args:
-            sentence (string): Agent new generated sentence containing a
-                stopping token pattern.
+            subprocess (function): the function to call during the
+                sentence generation to possibly send chunks of sentence
+                to the children modules.
 
         Returns:
-            string: Agent new generated sentence without the stopping
-                token pattern encountered. int: nb tokens removed (from
-                the stopping token pattern).
+            string: Agent new generated sentence. int: nb tokens in new
+                agent sentence.
         """
-        nb_token_removed = 0
-        for i, pattern in enumerate(self.stop_token_text_patterns):
-            if pattern == sentence[-len(pattern) :]:
-                sentence = sentence[: -len(pattern)]
-                nb_token_removed = len(self.stop_token_patterns[i])
-                break
-        while sentence[-1:] == b"\n":
-            sentence = sentence[:-1]
-            nb_token_removed += 1
-        return sentence, nb_token_removed
 
-    def remove_role_patterns(self, sentence):
-        """Function called when a role token pattern has been encountered
-        during the sentence generation. Remove the encountered pattern from the
-        generated sentence.
+        def stopping_criteria(tokens, logits):
+            if tokens[-1] == self.model.token_eos():
+                self.which_stop_criteria = "stop_token"
+                return True
+            elif len(tokens) == self.context_size - self.dialogue_history.context_size:
+                self.which_stop_criteria = "max_tokens"
+                return True
+            elif self.interruption:
+                self.which_stop_criteria = "interruption"
+                return True
+            return False
 
-        Args:
-            sentence (string): Agent new generated sentence containing a
-                role token pattern.
+        # Define the parameters
+        self.which_stop_criteria = None
+        self.nb_clauses = 0
+        self.file_logger.info("start_process")
 
-        Returns:
-            (bytes, int): the agent new generated sentence without the
-                role token pattern, and the number of token removed
-                while removing the role token pattern from the sentence.
-        """
-        first_chunck_string = sentence
-        nb_token_removed = 0
-        for i, pat in enumerate(self.role_token_text_patterns):
-            if pat == first_chunck_string[: -len(pat)]:
-                sentence = sentence[-len(pat) :]
-                nb_token_removed = len(self.role_token_patterns[i])
-                break
-        return sentence, nb_token_removed
+        # IMPORTANT : the stop crit is executed after the body of the for loop,
+        # which means token here is seen inside the loop before being accessible in stop crit funct
+        tokens = []
+        for token in self.model.generate(
+            prompt_tokens,
+            stopping_criteria=stopping_criteria,
+            top_k=self.top_k,
+            top_p=self.top_p,
+            temp=self.temp,
+            repeat_penalty=self.repeat_penalty,
+        ):
+            tokens.append(token)
+            self.incremental_iu_sending_hf(tokens)
+        return self.model.detokenize(tokens).decode("utf-8", errors="ignore"), len(tokens)
 
-    def prepare_dialogue_history(self):
-        """Calculate if the current dialogue history is bigger than the size
-        threshold (short_memory_context_size).
-
-        If the dialogue history contains too many tokens, remove the
-        older dialogue turns until its size is smaller than the
-        threshold.
-        """
-        # print(self.dialogue_history.get_dialogue_history())
-        return self.dialogue_history.prepare_dialogue_history(self.model.tokenize)
-
-    def is_punctuation(self, word):
-        """Returns True if the token correspond to a punctuation.
-
-        Args:
-            word (bytes): a detokenized word corresponding to last
-                generated LLM token
-
-        Returns:
-            bool: True if the token correspond to a punctuation.
-        """
-        return word in self.punctuation_text
-
-    def is_stop_token(self, token):
-        """Function used by the LLM to stop generate tokens when it meets
-        certain criteria.
-
-        Args:
-            token (int): last token generated by the LLM
-            word (bytes): the detokenized word corresponding to last
-                generated token
-
-        Returns:
-            bool: returns True if it the last generated token
-                corresponds to self.stop_token_ids or
-                self.stop_token_text.
-        """
-        is_stopping_id = token in self.stop_token_ids
-        return is_stopping_id
-
-    def is_stop_pattern(self, sentence):
-        """Returns True if one of the stopping token patterns matches the end
-        of the sentence.
-
-        Args:
-            sentence (string): a sentence.
-
-        Returns:
-            bool: True if one of the stopping token patterns matches the
-                end of the sentence.
-        """
-        for i, pat in enumerate(self.stop_token_text_patterns):
-            if pat == sentence[-len(pat) :]:
-                return True, self.stop_token_patterns[i], i
-        return False, None, None
-
-    def stopping_criteria(self, tokens, logits):
-        for i, pattern in enumerate(self.stop_token_patterns):
-            if pattern == tokens[-len(pattern) :]:
-                return True, pattern
-        return False, None
-
-    def is_role_pattern(self, sentence):
-        """Returns True if one of the role token patterns matches the beginning
-        of the sentence.
-
-        Args:
-            sentence (string): a sentence.
-
-        Returns:
-            bool: True if one of the role token patterns matches the
-                beginning of the sentence.
-        """
-        # We want to only check at the very beginning of the sentence
-        if self.max_role_pattern_length < len(sentence):
-            return False, None
-        # return True, and the stop pattern if last n characters of the sentence is a stop pattern.
-        for i, pat in enumerate(self.role_token_text_patterns):
-            if pat == sentence[-len(pat) :]:
-                return True, self.role_token_patterns[i]
-        return False, None
-
-    def generate_next_sentence(
-        self,
-        prompt,
-        prompt_tokens,
-        top_k=40,
-        top_p=0.95,
-        temp=1.0,
-        repeat_penalty=1.1,
-    ):
+    def create_chat_completion(self, history):
         """Generates the agent next sentence from the constructed prompt
         (dialogue scenario, dialogue history, instruct...). At each generated
         token, check is the end of the sentence corresponds to a stopping
@@ -520,152 +397,62 @@ class LlmDmModule(retico_core.AbstractModule):
                 agent sentence.
         """
 
-        def stop_function(tokens, logits):
-            """Stop the sentence generation if the which_stop_criteria class
-            parameter is not None, i.e. when a stop token, pattern has been
-            encountered or the user interrupted the agent.
-
-            Args:
-                tokens (_type_): tokens generated by LLM during current
-                    turn.
-                logits (_type_): _description_
-
-            Returns:
-                bool: True if which_stop_criteria is not None.
-            """
-            return self.which_stop_criteria is not None
-
         # Define the parameters
-        print("final_prompt = ", prompt)
-
-        last_sentence = b""
-        last_sentence_nb_tokens = 0
-        self.which_stop_criteria = None
+        print("final_prompt = ", history)
         self.nb_clauses = 0
-
         self.file_logger.info("start_process")
+        self.which_stop_criteria = None
 
-        # IMPORTANT : the stop crit is executed after the body of the for loop,
-        # which means token here is seen inside the loop before being accessible in stop crit funct
-        for token in self.model.generate(
-            prompt_tokens,
-            stopping_criteria=stop_function,
-            top_k=top_k,
-            top_p=top_p,
-            temp=temp,
-            repeat_penalty=repeat_penalty,
+        tokens = []
+        for token in self.model.create_chat_completion(
+            history,
+            stream=True,
+            # max_tokens=100,
+            top_k=self.top_k,
+            top_p=self.top_p,
+            temp=self.temp,
+            repeat_penalty=self.repeat_penalty,
         ):
-            # get word from token
-            word_bytes = self.model.detokenize([token])
-            word = word_bytes.decode(
-                "utf-8", errors="ignore"
-            )  # special tokens like 243 can raise an error, so we decide to ignore
+            tokens.append(token)
+            self.incremental_iu_sending_hf(tokens)
 
-            # Update current generated sentence and nb tokens
-            last_sentence += word_bytes
-            last_sentence_nb_tokens += 1
-
-            # Check if the sentence generation should be stopped (interruption or EOT)
-            is_stop_token = self.is_stop_token(token)
-            is_stop_pattern, stop_pattern, pattern_id = self.is_stop_pattern(last_sentence)
-            if self.interruption:
+            if len(tokens) == self.context_size - self.dialogue_history.context_size:
+                self.which_stop_criteria = "max_tokens"
+                break
+            elif self.interruption:
                 self.which_stop_criteria = "interruption"
-            elif is_stop_pattern:
-                self.which_stop_criteria = "stop_pattern_" + str(pattern_id)
-            elif is_stop_token:
-                self.which_stop_criteria = "stop_token"
-            elif self.which_stop_criteria is None:
-                is_role_pattern, role_pattern = self.is_role_pattern(last_sentence)
-                is_punctuation = self.is_punctuation(word_bytes)
-                self.incremental_iu_sending(
-                    word,
-                    is_punctuation,
-                    role_pattern,
-                )
+                break
 
-        return last_sentence, last_sentence_nb_tokens
+        self.which_stop_criteria = "stop_token" if self.which_stop_criteria == None else self.which_stop_criteria
+        return self.model.detokenize(tokens).decode("utf-8", errors="ignore"), len(tokens)
 
     #######
     # RETICO MODULE
     #######
 
-    def recreate_sentence_from_um(self, msg):
-        """Recreate the complete user sentence from the strings contained in
-        every COMMIT update message IU (msg).
+    def incremental_iu_sending_hf(self, tokens):
+        new_text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+        um, new_words = retico_core.text.get_text_increment(self, new_text)
+        last_iu = None if len(self.current_input) == 0 else self.current_input[-1]
+        for w in new_words:
+            output_iu = self.create_iu(
+                grounded_in=last_iu,
+                text=w,
+                turn_id=last_iu.turn_id,
+                clause_id=self.nb_clauses,
+            )
+            self.current_output.append(output_iu)
+            um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
-        Args:
-            msg (list): list of every COMMIT IUs contained in the
-                UpdateMessage.
-
-        Returns:
-            string: the complete user sentence calculated by the ASR.
-        """
-        sentence = ""
-        for iu in msg:
-            sentence += iu.payload + " "
-        return sentence
-
-    def incremental_iu_sending(
-        self,
-        payload,
-        is_punctuation=None,
-        role_pattern=None,
-    ):
-        """This function will be called by the submodule at each token
-        generation. It handles the communication with the subscribed module
-        (TTS for example), by updating and publishing new UpdateMessage
-        containing the new IUS.
-
-        IUs are : ADDED in every situation (the generated words are
-        sent to the subscribed modules). COMMITTED if the last token
-        generated is a punctuation (The TTS can start generating the
-        voice corresponding to the clause). REVOKED if the last tokens
-        generated corresponds to a role pattern (so that the subscribed
-        module delete the role pattern)
-
-        Args:
-            payload (string): the text corresponding to the last
-                generated token
-            is_punctuation (bool, optional): True if the last generated
-                token correspond to a punctuation. Defaults to None.
-            stop_pattern (string, optional): Text corresponding to the
-                generated stop_pattern. Defaults to None.
-        """
-        # Construct UM and IU
-        next_um = retico_core.UpdateMessage()
-        last_iu = None
-        if len(self.current_input) > 0:
-            last_iu = self.current_input[-1]
-        output_iu = self.create_iu(
-            grounded_in=last_iu,
-            text=payload,
-            turn_id=last_iu.turn_id,
-            clause_id=self.nb_clauses,
-        )
-        self.current_output.append(output_iu)
-
-        # ADD
-        next_um.add_iu(output_iu, retico_core.UpdateType.ADD)
-
-        # REVOKE if role patterns
-        if role_pattern is not None:
-            for id, token in enumerate(role_pattern):  # take all IUs corresponding to stop pattern
-                iu = self.current_output.pop(
-                    -1
-                )  # the IUs corresponding to the stop pattern are the last n ones where n=len(stop_pattern).
-                iu.revoked = True
-                next_um.add_iu(iu, retico_core.UpdateType.REVOKE)
-
-        # COMMIT if punctuation and not role patterns and not stop_pattern
-        if is_punctuation and role_pattern is None:
-            self.nb_clauses += 1
-            for iu in self.current_output:
-                self.commit(iu)
-                next_um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.file_logger.info("send_clause")
-            self.terminal_logger.info("send_clause", debug=True)
-            self.current_output = []
-        self.append(next_um)
+            if w in self.punctuation_text:
+                self.nb_clauses += 1
+                for iu in self.current_output:
+                    self.commit(iu)
+                    um.add_iu(iu, retico_core.UpdateType.COMMIT)
+                self.file_logger.info("send_clause")
+                self.terminal_logger.info("send_clause", debug=True)
+                self.current_output = []
+        self.append(um)
 
     def process_incremental(self):
         """Function that calls the submodule LLamaCppMemoryIncremental to
@@ -679,67 +466,56 @@ class LlmDmModule(retico_core.AbstractModule):
 
         # TODO : find a way to have only one data buffer for generated token/text. currently we have competitively IU buffer (current_output), and text buffer (agent_sentence).
         # this way, we would only have to remove from one buffer when deleting stop pattern, or role pattern.
-        user_sentence = self.recreate_sentence_from_um(self.current_input)
-        self.new_user_sentence(user_sentence)
-        prompt, prompt_tokens = self.prepare_dialogue_history()
-        last_processed_iu = self.current_input[-1]
+        self.new_user_sentence()
+        prompt_tokens, history = self.dialogue_history.prepare_dialogue_history(self.apply_chat_template_f)
+        if self.use_chat_completion:
+            agent_sentence, agent_sentence_nb_tokens = self.create_chat_completion(history)
+        else:
+            agent_sentence, agent_sentence_nb_tokens = self.generate_next_sentence(prompt_tokens)
 
-        agent_sentence, agent_sentence_nb_tokens = self.generate_next_sentence(prompt, prompt_tokens)
-
-        next_um = retico_core.UpdateMessage()
-
+        um = retico_core.UpdateMessage()
+        print("self.which_stop_criteria =", self.which_stop_criteria)
         if self.which_stop_criteria == "interruption":
             self.terminal_logger.info("interruption", debug=True)
             # REVOKE every word in interrupted clause (every IU in current_output)
             for iu in self.current_output:
                 self.revoke(iu, remove_revoked=False)
-                next_um.add_iu(iu, retico_core.UpdateType.REVOKE)
+                um.add_iu(iu, retico_core.UpdateType.REVOKE)
 
             # align dialogue history with last word spoken by speaker module
             if self.interrupted_speaker_iu is not None:
-
-                self.interruption_alignment_new_agent_sentence(agent_sentence.decode("utf-8"))
-
-        elif self.which_stop_criteria.startswith("stop_pattern"):
-            # remove from agent sentence every word contained in the stop pattern encountered
-            pattern_id = int(self.which_stop_criteria.split("_")[-1])
-            agent_sentence_reduced, nb_token_removed = self.remove_stop_patterns(agent_sentence, pattern_id)
-
-            # REVOKE every word contained in the stop pattern encountered
-            for i in range(nb_token_removed - 1):
-                iu = self.current_output.pop(-1)
-                iu.revoked = True
-                next_um.add_iu(iu, retico_core.UpdateType.REVOKE)
-            # add an IU significating that the agent turn is complete (EOT)
-            iu = self.create_iu(
-                grounded_in=last_processed_iu,
-                final=True,
-                turn_id=last_processed_iu.turn_id,
-            )
-
-            next_um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.terminal_logger.info(
-                "stop_pattern",
-                debug=True,
-            )
-
-            self.last_turn_agent_sentence = agent_sentence_reduced
-            self.last_turn_agent_sentence_nb_token = agent_sentence_nb_tokens - nb_token_removed
-            self.last_turn_agent_sentence_turn_id = last_processed_iu.turn_id
+                self.interruption_alignment_new_agent_sentence(agent_sentence)
 
         elif self.which_stop_criteria == "stop_token":
             # add an IU significating that the agent turn is complete (EOT)
+            last_processed_iu = self.current_input[-1]
             iu = self.create_iu(
                 grounded_in=last_processed_iu,
                 final=True,
                 turn_id=last_processed_iu.turn_id,
             )
-            next_um.add_iu(iu, retico_core.UpdateType.COMMIT)
+            um.add_iu(iu, retico_core.UpdateType.COMMIT)
             self.terminal_logger.info(
                 "stop_token",
                 debug=True,
             )
+            self.last_turn_agent_sentence = agent_sentence
+            self.last_turn_agent_sentence_nb_token = agent_sentence_nb_tokens
+            self.last_turn_agent_sentence_turn_id = last_processed_iu.turn_id
 
+        elif self.which_stop_criteria == "max_tokens":
+            # add an IU significating that the agent turn is complete (EOT)
+            last_processed_iu = self.current_input[-1]
+            iu = self.create_iu(
+                grounded_in=last_processed_iu,
+                final=True,
+                turn_id=last_processed_iu.turn_id,
+            )
+            um.add_iu(iu, retico_core.UpdateType.COMMIT)
+            self.terminal_logger.info(
+                "stop_token",
+                debug=True,
+            )
             self.last_turn_agent_sentence = agent_sentence
             self.last_turn_agent_sentence_nb_token = agent_sentence_nb_tokens
             self.last_turn_agent_sentence_turn_id = last_processed_iu.turn_id
@@ -749,7 +525,7 @@ class LlmDmModule(retico_core.AbstractModule):
 
         print(f"LLM:\n{self.last_turn_agent_sentence}")
 
-        self.append(next_um)
+        self.append(um)
 
         # reset because it is end of sentence
         # TODO : loop over these 2 list and remove only IUs with the same turn_id as current_turn ? to be sure to keep IUs from next turn ?
@@ -817,7 +593,7 @@ class LlmDmModule(retico_core.AbstractModule):
                                 grounded_word=self.last_turn_last_iu.grounded_word,
                             )
                             self.new_agent_sentence(
-                                self.last_turn_agent_sentence.decode("utf-8"),
+                                self.last_turn_agent_sentence,
                                 self.last_turn_last_iu.turn_id,
                             )
                         except Exception:
@@ -884,7 +660,15 @@ class LlmDmModule(retico_core.AbstractModule):
                 "Please, when creating the module, you must give a model_path or model_repo and model_name"
             )
 
-        self.init_stop_criteria()
+        self.chat_formatter = (
+            (
+                self.model.chat_handler
+                or self.model._chat_handlers.get(self.model.chat_format)
+                or llama_chat_format.get_chat_completion_handler(self.model.chat_format)
+            )
+            .__closure__[0]
+            .cell_contents
+        )
 
     def prepare_run(self):
         """Overrides AbstractModule : https://github.com/retico-team/retico-

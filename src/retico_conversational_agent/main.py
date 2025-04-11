@@ -73,7 +73,9 @@ def main_DM():
     plot_config_path = "configs/plot_config_DM.json"
     plot_live = True
     prompt_format_config = "configs/prompt_format_config.json"
-    context_size = 2000
+    # context_size = 2000
+    context_size = 500
+    dh_size = 300
 
     # filters
     filters = [
@@ -103,11 +105,16 @@ def main_DM():
         window_duration=30,
     )
 
-    dialogue_history = agent.DialogueHistory(
-        prompt_format_config,
+    # dialogue_history = agent.DialogueHistory(
+    #     prompt_format_config,
+    #     terminal_logger=terminal_logger,
+    #     initial_system_prompt=system_prompt,
+    #     context_size=context_size,
+    # )
+    dialogue_history = agent.DialogueHistoryHf(
         terminal_logger=terminal_logger,
         initial_system_prompt=system_prompt,
-        context_size=context_size,
+        context_size=dh_size,
     )
 
     # create modules
@@ -143,7 +150,17 @@ def main_DM():
         input_framerate=rate,
     )
 
-    llm = agent.LlmDmModule(
+    # llm = agent.LlmDmModule(
+    #     model_path,
+    #     None,
+    #     None,
+    #     dialogue_history=dialogue_history,
+    #     printing=printing,
+    #     device=device,
+    #     verbose=True,
+    # )
+
+    llm = agent.LlmDmModuleHf(
         model_path,
         None,
         None,
