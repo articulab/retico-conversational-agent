@@ -20,11 +20,12 @@ Inputs : AudioIU, TextIU
 Outputs : VADIU
 """
 
+import time
 import webrtcvad
 
 import retico_core
 
-from .utils import resample_audio, resample_audio_2
+from retico_core.audio import resample_audio
 from .additional_IUs import VADIU, SpeakerAlignementIU
 
 
@@ -129,10 +130,7 @@ class VadModule(retico_core.AbstractModule):
                         raise ValueError(
                             f"input framerate differs from iu framerate : {self.input_framerate} vs {iu.rate}"
                         )
-                    # raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
-                    raw_audio = resample_audio_2(
-                        iu.raw_audio, iu.rate, self.target_framerate, self.sample_width, self.channels
-                    )
+                    raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
                     # self.terminal_logger.info("received audio IU", VA_user=VA_user, debug=True)
                     output_iu = self.create_iu(

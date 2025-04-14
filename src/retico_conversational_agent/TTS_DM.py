@@ -213,11 +213,7 @@ class TtsDmModule(retico_core.AbstractModule):
         else:
             waveforms, outputs = final_outputs
 
-        # waveform = waveforms.squeeze(1).detach().numpy()[0]
-        waveform = np.array(waveforms)
-
-        # Convert float32 data [-1,1] to int16 data [-32767,32767]
-        waveform = (waveform * 32767).astype(np.int16).tobytes()
+        waveform = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=waveforms)
 
         return waveform, outputs
 
@@ -355,8 +351,7 @@ class TtsDmModule(retico_core.AbstractModule):
         ius = []
         i = 0
         while i < len_wav:
-            chunk = outputs["wav"][i : i + self.chunk_size]
-            chunk = (np.array(chunk) * 32767).astype(np.int16).tobytes()
+            chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=outputs["wav"][i : i + self.chunk_size])
             if len(chunk) < self.chunk_size_bytes:
                 chunk = chunk + b"\x00" * (self.chunk_size_bytes - len(chunk))
 
@@ -477,9 +472,9 @@ class TtsDmModule(retico_core.AbstractModule):
             i = 0
             j = 0
             while i < len_wav:
-                chunk = outputs["wav"][i : i + self.chunk_size]
-                # modify raw audio to match correct format
-                chunk = (np.array(chunk) * 32767).astype(np.int16).tobytes()
+                chunk = retico_core.audio.convert_audio_float32_to_PCM16(
+                    raw_audio=outputs["wav"][i : i + self.chunk_size]
+                )
                 ## TODO : change that silence padding: padding with silence will slow down the speaker a lot
                 word_id = pre_pro_words[-1]
                 if len(chunk) <= self.chunk_size_bytes:

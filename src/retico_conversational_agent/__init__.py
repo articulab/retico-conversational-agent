@@ -22,4 +22,4 @@ from retico_conversational_agent.additional_IUs import (
     SpeechRecognitionTurnIU,
 )
 
-from retico_conversational_agent.utils import device_definition, resample_audio, resample_audio_2, resample_audio_file
+from retico_conversational_agent.utils import device_definition

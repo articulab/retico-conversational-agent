@@ -118,7 +118,7 @@ class AsrDmModule(retico_core.AbstractModule):
         """
         # faster whisper
         full_audio = b"".join(self.audio_buffer)
-        audio_np = np.frombuffer(full_audio, dtype=np.int16).astype(np.float32) / 32768.0
+        audio_np = retico_core.audio.convert_audio_PCM16_to_float32(raw_audio=full_audio)
         segments, _ = self.model.transcribe(audio_np)  # the segments can be streamed
         segments = list(segments)
         transcription = "".join([s.text for s in segments])

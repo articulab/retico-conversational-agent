@@ -12,7 +12,6 @@ version = "0.0.1"
 requires-python = ">=3.11.7"
 dependencies = [
     "transitions",
-    "pydub",
     "webrtcvad",
     "faster_whisper",
     "llama-cpp-python",
