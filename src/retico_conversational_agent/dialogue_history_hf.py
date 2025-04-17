@@ -144,7 +144,7 @@ class DialogueHistoryHf:
         self.dialogue_history[0]["content"] = system_prompt
         return previous_system_prompt
 
-    def get_prompt(self, fun_tokenize, start=1, end=None):
+    def get_prompt(self, fun_tokenize, start=0, end=None):
         """Get the formatted prompt containing all turns between start and end.
 
         Args:
