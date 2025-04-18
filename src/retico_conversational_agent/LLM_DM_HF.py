@@ -370,7 +370,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             repeat_penalty=self.repeat_penalty,
         ):
             tokens.append(token)
-            self.incremental_iu_sending_hf(tokens)
+            self.incremental_iu_sending_hf(token)
         return self.model.detokenize(tokens).decode("utf-8", errors="ignore"), len(tokens)
 
     def create_chat_completion(self, history):
@@ -414,7 +414,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             repeat_penalty=self.repeat_penalty,
         ):
             tokens.append(token)
-            self.incremental_iu_sending_hf(tokens)
+            self.incremental_iu_sending_hf(token)
 
             if len(tokens) == self.context_size - self.dialogue_history.context_size:
                 self.which_stop_criteria = "max_tokens"
@@ -430,7 +430,42 @@ class LlmDmModuleHf(retico_core.AbstractModule):
     # RETICO MODULE
     #######
 
-    def incremental_iu_sending_hf(self, tokens):
+    def finish_with_punctuation(self, tokens: list[int]):
+        """Check if the last token is a punctuation token."""
+        return self.model.detokenize([tokens[-1]]).decode("utf-8", errors="ignore") in self.punctuation_text
+
+    def is_token_punctuation(self, token: int):
+        """Check if the last token is a punctuation token."""
+        return self.model.detokenize([token]).decode("utf-8", errors="ignore") in self.punctuation_text
+
+    def is_word_punctuation(self, word: str):
+        """Check if the last token is a punctuation token."""
+        return word in self.punctuation_text
+
+    def incremental_iu_sending_hf(self, token):
+        new_word = self.model.detokenize([token]).decode("utf-8", errors="ignore")
+        last_iu = None if len(self.current_input) == 0 else self.current_input[-1]
+        um = retico_core.UpdateMessage()
+        output_iu = self.create_iu(
+            grounded_in=last_iu,
+            text=new_word,
+            turn_id=last_iu.turn_id,
+            clause_id=self.nb_clauses,
+        )
+        self.current_output.append(output_iu)
+        um.add_iu(output_iu, retico_core.UpdateType.ADD)
+
+        if self.is_word_punctuation(new_word):
+            self.nb_clauses += 1
+            for iu in self.current_output:
+                self.commit(iu)
+                um.add_iu(iu, retico_core.UpdateType.COMMIT)
+            self.file_logger.info("send_clause")
+            self.terminal_logger.info("send_clause", debug=True)
+            self.current_output = []
+        self.append(um)
+
+    def incremental_iu_sending_hf_2(self, tokens):
         new_text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
         um, new_words = retico_core.text.get_text_increment(self, new_text)
         last_iu = None if len(self.current_input) == 0 else self.current_input[-1]
@@ -444,14 +479,21 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             self.current_output.append(output_iu)
             um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
-            if w in self.punctuation_text:
-                self.nb_clauses += 1
-                for iu in self.current_output:
-                    self.commit(iu)
-                    um.add_iu(iu, retico_core.UpdateType.COMMIT)
-                self.file_logger.info("send_clause")
-                self.terminal_logger.info("send_clause", debug=True)
-                self.current_output = []
+        if self.finish_with_punctuation(tokens):
+            self.terminal_logger.info("new_text", new_text=new_text, debug=True)
+            self.terminal_logger.info("new_words", new_words=new_words, debug=True)
+            self.terminal_logger.info(
+                "new_words LLM DM",
+                new_words=[self.model.detokenize([t]).decode("utf-8", errors="ignore") for t in tokens],
+                debug=True,
+            )
+            self.nb_clauses += 1
+            for iu in self.current_output:
+                self.commit(iu)
+                um.add_iu(iu, retico_core.UpdateType.COMMIT)
+            self.file_logger.info("send_clause")
+            self.terminal_logger.info("send_clause", debug=True)
+            self.current_output = []
         self.append(um)
 
     def process_incremental(self):
@@ -525,6 +567,12 @@ class LlmDmModuleHf(retico_core.AbstractModule):
 
         print(f"LLM:\n{self.last_turn_agent_sentence}")
 
+        self.terminal_logger.info(
+            "EOT STOP CRIT",
+            len_um=len(um),
+            finals=[iu.final for iu, _ in um],
+            debug=True,
+        )
         self.append(um)
 
         # reset because it is end of sentence
@@ -580,26 +628,43 @@ class LlmDmModuleHf(retico_core.AbstractModule):
                         self.interruption_alignment_last_agent_sentence(iu)
                     if iu.event == "agent_EOT":
                         self.terminal_logger.info(
+                            "LLM agent_EOT ",
+                            len_um=len(update_message),
+                            event_um=[iu.event for iu, _ in update_message],
+                            debug=True,
+                        )
+                        self.terminal_logger.info(
                             "agent EOT",
                             debug=True,
                             turn_id=iu.turn_id,
                             grounded_word=iu.grounded_word,
                         )
-                        try:
-                            self.terminal_logger.info(
-                                "agent EOT last iu",
-                                debug=True,
-                                turn_id=self.last_turn_last_iu.turn_id,
-                                grounded_word=self.last_turn_last_iu.grounded_word,
-                            )
-                            self.new_agent_sentence(
-                                self.last_turn_agent_sentence,
-                                self.last_turn_last_iu.turn_id,
-                            )
-                        except Exception:
-                            self.terminal_logger.exception()
+                        self.terminal_logger.info(
+                            "agent EOT last iu",
+                            debug=True,
+                            turn_id=self.last_turn_last_iu.turn_id,
+                            grounded_word=self.last_turn_last_iu.grounded_word,
+                        )
+                        self.new_agent_sentence(
+                            self.last_turn_agent_sentence,
+                            self.last_turn_last_iu.turn_id,
+                        )
+                        # try:
+                        #     self.terminal_logger.info(
+                        #         "agent EOT last iu",
+                        #         debug=True,
+                        #         turn_id=self.last_turn_last_iu.turn_id,
+                        #         grounded_word=self.last_turn_last_iu.grounded_word,
+                        #     )
+                        #     self.new_agent_sentence(
+                        #         self.last_turn_agent_sentence,
+                        #         self.last_turn_last_iu.turn_id,
+                        #     )
+                        # except Exception:
+                        #     self.terminal_logger.exception()
                     if iu.event == "ius_from_last_turn":
                         self.last_turn_last_iu = iu
+                        print("LLM IU TURN EOT, ius_from_last_turn", self.last_turn_last_iu)
                 elif ut == retico_core.UpdateType.REVOKE:
                     continue
                 elif ut == retico_core.UpdateType.COMMIT:

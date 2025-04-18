@@ -275,11 +275,19 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
 
             um = retico_core.UpdateMessage()
             um.add_ius([(um_iu, retico_core.UpdateType.ADD) for um_iu in self.current_output + [output_iu]])
+            self.terminal_logger.info(
+                "Speaker DM agent_EOT ",
+                len_um=len(um),
+                event_um=[iu.event for iu, _ in um],
+                event_current_output=[iu.event for iu in self.current_output],
+                debug=True,
+            )
             self.current_output = []
             self.append(um)
             silence_bytes = b"\x00" * frame_count * self.channels * self.sample_width
             return (silence_bytes, pyaudio.paContinue)
         else:
+            self.terminal_logger.info("SPEAKER DM output", debug=True)
             # if it is the first IU from new agent turn, which corresponds to the official agent BOT
             if self.latest_processed_iu is None or (
                 self.latest_processed_iu.turn_id is not None
@@ -302,7 +310,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
 
             data = bytes(iu.raw_audio)
 
-            # self.terminal_logger.info("output_audio", debug=True)
+            self.terminal_logger.info("output_audio", debug=True)
             self.file_logger.info("output_audio")
 
             self.latest_processed_iu = iu
@@ -320,6 +328,11 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                 event="ius_from_last_turn",
             )
             self.current_output.append(stored_iu)
+            self.terminal_logger.info(
+                "Speaker DM ius_from_last_turn ",
+                event_current_output=[iu.event for iu in self.current_output],
+                debug=True,
+            )
             return (data, pyaudio.paContinue)
 
     def prepare_run(self):

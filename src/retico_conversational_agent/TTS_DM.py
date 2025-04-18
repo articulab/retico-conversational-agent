@@ -230,6 +230,7 @@ class TtsDmModule(retico_core.AbstractModule):
         """
         words = [iu.text for iu in clause_ius]
         return "".join(words), words
+        # return " ".join(words), words
 
     def process_update(self, update_message):
         """Receives and stores the TurnTextIUs, so that they are later
@@ -263,6 +264,7 @@ class TtsDmModule(retico_core.AbstractModule):
                 if ut == retico_core.UpdateType.ADD:
                     if iu.action == "hard_interruption":
                         self.file_logger.info("hard_interruption")
+                        self.terminal_logger.info("hard_interruption")
                         self.interrupted_turn = self.current_turn_id
                         self.first_clause = True
                         self.current_input = []
@@ -276,6 +278,7 @@ class TtsDmModule(retico_core.AbstractModule):
                             curr=self.current_turn_id,
                         )
                         self.file_logger.info("stop_turn_id")
+                        self.terminal_logger.info("stop_turn_id")
                         if iu.turn_id > self.current_turn_id:
                             self.interrupted_turn = self.current_turn_id
                         self.first_clause = True
@@ -310,8 +313,8 @@ class TtsDmModule(retico_core.AbstractModule):
                             debug=True,
                             end_of_turn=end_of_turn,
                             clause_ius=clause_ius,
+                            len_clause_ius=len(clause_ius),
                         )
-                        self.terminal_logger.info("EOT TTS")
                         self.file_logger.info("EOT")
                         self.first_clause = True
                         um.add_iu(

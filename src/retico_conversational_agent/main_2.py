@@ -66,8 +66,6 @@ def main_DM():
     tts_model_samplerate = 48000
     tts_model = "jenny"
     model_path = "./models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
-    model_repo = "QuantFactory/Llama-3.2-3B-Instruct-GGUF"
-    model_name = "Llama-3.2-3B-Instruct.Q4_K_M.gguf"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
@@ -85,7 +83,7 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                # [("module", ["TTS DM Module", "LLM DM HF Module", "Speaker DM Module"])],
+                [("module", ["TTS DM Module", "LLM DM Module", "Speaker DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -107,17 +105,17 @@ def main_DM():
         window_duration=30,
     )
 
-    # dialogue_history = agent.DialogueHistory(
-    #     prompt_format_config,
-    #     terminal_logger=terminal_logger,
-    #     initial_system_prompt=system_prompt,
-    #     context_size=context_size,
-    # )
-    dialogue_history = agent.DialogueHistoryHf(
+    dialogue_history = agent.DialogueHistory(
+        prompt_format_config,
         terminal_logger=terminal_logger,
         initial_system_prompt=system_prompt,
-        context_size=dh_size,
+        context_size=context_size,
     )
+    # dialogue_history = agent.DialogueHistoryHf(
+    #     terminal_logger=terminal_logger,
+    #     initial_system_prompt=system_prompt,
+    #     context_size=dh_size,
+    # )
 
     # create modules
     # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
@@ -152,7 +150,17 @@ def main_DM():
         input_framerate=rate,
     )
 
-    # llm = agent.LlmDmModule(
+    llm = agent.LlmDmModule(
+        model_path,
+        None,
+        None,
+        dialogue_history=dialogue_history,
+        printing=printing,
+        device=device,
+        verbose=True,
+    )
+
+    # llm = agent.LlmDmModuleHf(
     #     model_path,
     #     None,
     #     None,
@@ -161,16 +169,6 @@ def main_DM():
     #     device=device,
     #     verbose=True,
     # )
-
-    llm = agent.LlmDmModuleHf(
-        None,
-        model_repo=model_repo,
-        model_name=model_name,
-        dialogue_history=dialogue_history,
-        printing=printing,
-        device=device,
-        verbose=True,
-    )
 
     tts = agent.TtsDmModule(
         language="en",
