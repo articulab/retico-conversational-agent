@@ -83,7 +83,8 @@ def main_DM():
             filter_cases,
             cases=[
                 [("debug", [True])],
-                [("module", ["TTS DM Module", "LLM DM Module", "Speaker DM Module"])],
+                # [("module", ["TTS DM Module", "LLM DM Module", "Speaker DM Module"])],
+                [("module", ["TTS DM Module"])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],

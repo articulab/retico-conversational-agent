@@ -55,6 +55,8 @@ Child : I am fine, and I can't wait to learn mathematics!
 Teacher :"
 """
 
+import time
+
 
 class DialogueHistoryHf:
     """The dialogue history is where all the sentences from the previvous agent
@@ -122,6 +124,7 @@ class DialogueHistoryHf:
         utterance["turn_id"] = len(self.dialogue_history) if utterance["turn_id"] is None else utterance["turn_id"]
         self.dialogue_history.append(utterance)
         print(f"\n{utterance['role']} : {utterance['content']}")
+        time.sleep(5)
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
@@ -235,13 +238,6 @@ class DialogueHistoryHf:
 
         # Merge the clauses back together
         new_agent_sentence = "".join(sentence_clauses)
-
-        self.terminal_logger.info(
-            "DH interruption alignement func",
-            utterance=utterance,
-            new_agent_sentence=new_agent_sentence,
-            debug=True,
-        )
 
         # store the new sentence in the dialogue history
         utterance["content"] = new_agent_sentence

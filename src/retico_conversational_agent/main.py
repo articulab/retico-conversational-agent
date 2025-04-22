@@ -84,8 +84,13 @@ def main_DM():
         partial(
             filter_cases,
             cases=[
-                [("debug", [True])],
-                # [("module", ["TTS DM Module", "LLM DM HF Module", "Speaker DM Module"])],
+                # [("debug", [True])],
+                # [("module", ["TTS DM Module"])],
+                # [
+                #     ("module", ["LLM DM HF Module"]),
+                #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
+                # ],
+                [("debug_debug", [True])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -141,7 +146,7 @@ def main_DM():
     #     input_framerate=rate,
     #     frame_length=frame_length,
     # )
-    dm.add_repeat_policy()
+    # dm.add_repeat_policy()
     dm.add_soft_interruption_policy()
     dm.add_continue_policy()
     # dm.add_backchannel_policy()
@@ -208,10 +213,10 @@ def main_DM():
     except Exception:
         terminal_logger.exception("exception in main")
         network.stop(mic)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
+    # finally:
+    #     plot_once(
+    #         plot_config_path=plot_config_path,
+    #     )
 
 
 if __name__ == "__main__":

@@ -597,6 +597,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             return None
         msg = []
         # self.last_turn_last_iu = None
+
         for iu, ut in update_message:
             if isinstance(iu, SpeechRecognitionIU):
                 if ut == retico_core.UpdateType.ADD:
@@ -621,50 +622,19 @@ class LlmDmModuleHf(retico_core.AbstractModule):
                             self.interruption = True  # test this
                             # we would have to do something much more simple, just stop generation and clear current_output, no alignement or nothing
             elif isinstance(iu, SpeakerAlignementIU):
-                self.terminal_logger.info("LLM receives SpeakerAlignementIU", debug=True)
+                # self.terminal_logger.info("LLM receives SpeakerAlignementIU", debug=True)
                 if ut == retico_core.UpdateType.ADD:
                     if iu.event == "interruption":
-                        self.terminal_logger.info("LLM alignement interruption", debug=True)
                         self.interruption_alignment_last_agent_sentence(iu)
                     if iu.event == "agent_EOT":
-                        self.terminal_logger.info(
-                            "LLM agent_EOT ",
-                            len_um=len(update_message),
-                            event_um=[iu.event for iu, _ in update_message],
-                            debug=True,
-                        )
-                        self.terminal_logger.info(
-                            "agent EOT",
-                            debug=True,
-                            turn_id=iu.turn_id,
-                            grounded_word=iu.grounded_word,
-                        )
-                        self.terminal_logger.info(
-                            "agent EOT last iu",
-                            debug=True,
-                            turn_id=self.last_turn_last_iu.turn_id,
-                            grounded_word=self.last_turn_last_iu.grounded_word,
-                        )
+                        self.file_logger.info("LLM agent_EOT")
                         self.new_agent_sentence(
                             self.last_turn_agent_sentence,
                             self.last_turn_last_iu.turn_id,
                         )
-                        # try:
-                        #     self.terminal_logger.info(
-                        #         "agent EOT last iu",
-                        #         debug=True,
-                        #         turn_id=self.last_turn_last_iu.turn_id,
-                        #         grounded_word=self.last_turn_last_iu.grounded_word,
-                        #     )
-                        #     self.new_agent_sentence(
-                        #         self.last_turn_agent_sentence,
-                        #         self.last_turn_last_iu.turn_id,
-                        #     )
-                        # except Exception:
-                        #     self.terminal_logger.exception()
                     if iu.event == "ius_from_last_turn":
                         self.last_turn_last_iu = iu
-                        print("LLM IU TURN EOT, ius_from_last_turn", self.last_turn_last_iu)
+                        # print("LLM IU TURN EOT, ius_from_last_turn", self.last_turn_last_iu)
                 elif ut == retico_core.UpdateType.REVOKE:
                     continue
                 elif ut == retico_core.UpdateType.COMMIT:
