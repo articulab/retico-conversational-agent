@@ -391,7 +391,6 @@ class TtsDmModule(retico_core.AbstractModule):
         """
         # preprocess on words
         current_text, words = self.one_clause_text_and_words(clause_ius)
-        self.terminal_logger.info("TTS get iu clause", debug_debug=True, current_text=current_text, words=words)
 
         # pre_pro_words = []
         # pre_pro_words_distinct = []
@@ -434,9 +433,6 @@ class TtsDmModule(retico_core.AbstractModule):
                 words[x + 1 : pre_pro_words[i + 1] + 1] for i, x in enumerate(pre_pro_words[:-1])
             ]
 
-        self.terminal_logger.info("INPUT", non_space_words=non_space_words, debug_debug=True)
-        self.terminal_logger.info("INPUT", pre_pro_words=pre_pro_words, debug_debug=True)
-        self.terminal_logger.info("INPUT", pre_pro_words_distinct=pre_pro_words_distinct, debug_debug=True)
         assert len(pre_pro_words) == len(pre_pro_words_distinct)
         assert len(words) == len(non_space_words) + len(pre_pro_words)
         assert len(words) == sum([len(p) for p in pre_pro_words_distinct])
@@ -455,14 +451,6 @@ class TtsDmModule(retico_core.AbstractModule):
             if x == self.space_token or i == len(tokens) - 1:
                 audio_words_ends.append(i + 1)
 
-        self.terminal_logger.info(
-            "OUTPUT",
-            SPACE_TOKEN_ID=self.space_token,
-            tokens=tokens,
-            len_tokens=len(tokens),
-            audio_words_ends=audio_words_ends,
-            debug_debug=True,
-        )
         assert len(audio_words_ends) == len(pre_pro_words)
 
         # pre_tokenized_txt = [
@@ -489,15 +477,6 @@ class TtsDmModule(retico_core.AbstractModule):
             #         print("TTS word alignment not exact, more tokens than words")
 
             words_last_frame = np.cumsum(words_duration).tolist()
-
-            self.terminal_logger.info(
-                "OUTPUT",
-                durations=durations,
-                len_durations=len(durations),
-                words_duration=words_duration,
-                words_last_frame=words_last_frame,
-                debug_debug=True,
-            )
             assert len(durations) == len(tokens)
             assert len(words_duration) == len(pre_pro_words)
             assert len_wav == total_duration * NB_FRAME_PER_DURATION
@@ -538,8 +517,6 @@ class TtsDmModule(retico_core.AbstractModule):
                     clause_id=grounded_iu.clause_id,
                 )
                 new_buffer.append(iu)
-
-        self.terminal_logger.info("OUTPUT", len_um=len(new_buffer), debug_debug=True)
         return new_buffer
 
     def get_new_iu_buffer_from_clause_ius_sentence(self, clause_ius):
@@ -600,6 +577,7 @@ class TtsDmModule(retico_core.AbstractModule):
             word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + self.chunk_size])
             word_id = min(word_id, len(words) - 1)
             grounded_iu = clause_ius[word_id]
+            char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
             iu = self.create_iu(
                 grounded_in=grounded_iu,
                 raw_audio=chunk,
@@ -608,7 +586,7 @@ class TtsDmModule(retico_core.AbstractModule):
                 sample_width=self.samplewidth,
                 grounded_word=words[word_id],
                 word_id=int(word_id),
-                # char_id=char_id,
+                char_id=char_id,
                 turn_id=grounded_iu.turn_id,
                 clause_id=grounded_iu.clause_id,
             )
@@ -621,6 +599,7 @@ class TtsDmModule(retico_core.AbstractModule):
             #     chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
             #     chunk_start = chunk_end
             #     grounded_iu = clause_ius[word_id]
+            #     char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
             #     iu = self.create_iu(
             #         grounded_in=grounded_iu,
             #         raw_audio=chunk,
@@ -629,7 +608,7 @@ class TtsDmModule(retico_core.AbstractModule):
             #         sample_width=self.samplewidth,
             #         grounded_word=words[word_id],
             #         word_id=int(word_id),
-            #         # char_id=char_id,
+            #         char_id=char_id,
             #         turn_id=grounded_iu.turn_id,
             #         clause_id=grounded_iu.clause_id,
             #     )

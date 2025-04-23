@@ -257,8 +257,8 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": self.current_input[-1].turn_id,
-                "speaker": "user",
-                "text": user_sentence,
+                "role": "user",
+                "content": user_sentence,
             }
         )
 
@@ -276,8 +276,8 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": turn_id,
-                "speaker": "agent",
-                "text": agent_sentence,
+                "role": "agent",
+                "content": agent_sentence,
             }
         )
 
@@ -302,8 +302,8 @@ class LlmDmModule(retico_core.AbstractModule):
         """
         utterance = {
             "turn_id": self.interrupted_speaker_iu.turn_id,
-            "speaker": "agent",
-            "text": new_agent_sentence,
+            "role": "agent",
+            "content": new_agent_sentence,
         }
         self.dialogue_history.interruption_alignment_new_agent_sentence(
             utterance, self.punctuation_ids, self.interrupted_speaker_iu

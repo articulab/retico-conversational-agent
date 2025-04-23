@@ -234,7 +234,8 @@ class DialogueHistoryHf:
         sentence_clauses = sentence_clauses[: interrupted_speaker_iu.clause_id + 1]
 
         # Shorten the last agent utterance until the last char outputted by the speakermodule before the interruption
-        sentence_clauses[-1] = sentence_clauses[-1][: interrupted_speaker_iu.char_id + 1]
+        if hasattr(interrupted_speaker_iu, "char_id") and interrupted_speaker_iu.char_id is not None:
+            sentence_clauses[-1] = sentence_clauses[-1][: interrupted_speaker_iu.char_id + 1]
 
         # Merge the clauses back together
         new_agent_sentence = "".join(sentence_clauses)

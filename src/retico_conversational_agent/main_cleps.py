@@ -26,7 +26,7 @@ from retico_conversational_agent import (
 )
 
 
-def main_DM_remote_computing_remote():
+def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_llm: str):
     """The `main_DM_remote_computing_remote` and `main_DM_remote_computing_local` functions creates the dialog system
     in two parts, communicating with one another through ActiveMQ. The idea is to have all the dialog system's modules
     that are supposed to run on a remote computer and runs a dialog system that is able to have a conversation with the

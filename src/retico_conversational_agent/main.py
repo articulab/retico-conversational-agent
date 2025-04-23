@@ -4,6 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from functools import partial
 import torch
 import argparse
+import json
 
 import retico_core
 from retico_core import network
@@ -20,7 +21,7 @@ import retico_conversational_agent as agent
 from retico_conversational_agent.main_cleps import main_DM_remote_computing_remote, main_DM_remote_computing_local
 
 
-def main_DM():
+def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     """The `main_DM` function creates and runs a dialog system that is able to
     have a conversation with the user.
 
@@ -65,32 +66,29 @@ def main_DM():
     # tts_model = "vits_vctk"
     tts_model_samplerate = 48000
     tts_model = "jenny"
-    model_path = "./models/mistral-7b-instruct-v0.2.Q4_K_S.gguf"
-    model_repo = "QuantFactory/Llama-3.2-3B-Instruct-GGUF"
-    model_name = "Llama-3.2-3B-Instruct.Q4_K_M.gguf"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
         You play the role of a teacher. Here is the beginning of the conversation :"
     plot_config_path = "configs/plot_config_DM.json"
-    plot_live = True
+    plot_live = False
     prompt_format_config = "configs/prompt_format_config.json"
-    # context_size = 2000
-    context_size = 500
-    dh_size = 300
+    context_size = 2000
+    dh_size = 1500
+    # context_size = 500
+    # dh_size = 300
 
     # filters
     filters = [
         partial(
             filter_cases,
             cases=[
-                # [("debug", [True])],
+                [("debug", [True])],
                 # [("module", ["TTS DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
-                [("debug_debug", [True])],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["warning", "error"])],
             ],
@@ -112,28 +110,55 @@ def main_DM():
         window_duration=30,
     )
 
-    # dialogue_history = agent.DialogueHistory(
-    #     prompt_format_config,
-    #     terminal_logger=terminal_logger,
-    #     initial_system_prompt=system_prompt,
-    #     context_size=context_size,
-    # )
-    dialogue_history = agent.DialogueHistoryHf(
-        terminal_logger=terminal_logger,
-        initial_system_prompt=system_prompt,
-        context_size=dh_size,
-    )
-
     # create modules
-    # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
-    # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
-    # mic = audio.MicrophoneModule()
-    # mic = WozMicrophoneModule(frame_length=frame_length)
-    mic = WOZMicrophoneModule(frame_length=frame_length)
+    if wozmic:
+        mic = WOZMicrophoneModule(frame_length=frame_length)
+    else:
+        # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
+        # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
+        mic = retico_core.audio.MicrophoneModule()
 
     vad = agent.VadModule(
         input_framerate=rate,
         frame_length=frame_length,
+    )
+
+    if dh:
+        dialogue_history = agent.DialogueHistory(
+            prompt_format_config,
+            terminal_logger=terminal_logger,
+            initial_system_prompt=system_prompt,
+            context_size=context_size,
+        )
+        llm_init = agent.LlmDmModule
+    else:
+        dialogue_history = agent.DialogueHistoryHf(
+            terminal_logger=terminal_logger,
+            initial_system_prompt=system_prompt,
+            context_size=dh_size,
+        )
+        llm_init = agent.LlmDmModuleHf
+
+    model_repo = None
+    model_name = None
+    if local_llm is None:
+        with open("configs/LLMs.json") as models_file:
+            models = json.load(models_file)
+            model = models[llm]
+            if quantized:
+                model_repo = model["quantized"]["repo"]
+                model_name = model["quantized"]["model"]
+            else:  # TODO: implement original HF LLM initialization
+                model_repo = model["original"]["repo"]
+
+    llm = llm_init(
+        model_path=local_llm,
+        model_repo=model_repo,
+        model_name=model_name,
+        dialogue_history=dialogue_history,
+        printing=printing,
+        device=device,
+        verbose=True,
     )
 
     dm = agent.DialogueManagerModule(
@@ -141,12 +166,7 @@ def main_DM():
         input_framerate=rate,
         frame_length=frame_length,
     )
-    # dm = DialogueManagerModule_2(
-    #     dialogue_history=dialogue_history,
-    #     input_framerate=rate,
-    #     frame_length=frame_length,
-    # )
-    # dm.add_repeat_policy()
+    dm.add_repeat_policy()
     dm.add_soft_interruption_policy()
     dm.add_continue_policy()
     # dm.add_backchannel_policy()
@@ -155,26 +175,6 @@ def main_DM():
         device=device,
         full_sentences=True,
         input_framerate=rate,
-    )
-
-    # llm = agent.LlmDmModule(
-    #     model_path,
-    #     None,
-    #     None,
-    #     dialogue_history=dialogue_history,
-    #     printing=printing,
-    #     device=device,
-    #     verbose=True,
-    # )
-
-    llm = agent.LlmDmModuleHf(
-        None,
-        model_repo=model_repo,
-        model_name=model_name,
-        dialogue_history=dialogue_history,
-        printing=printing,
-        device=device,
-        verbose=True,
     )
 
     tts = agent.TtsDmModule(
@@ -220,7 +220,7 @@ def main_DM():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("simple_example")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--cuda_test", "-ct", nargs="+", help="if set, execute cuda_test instead of regular system execution.", type=str
     )
@@ -231,17 +231,64 @@ if __name__ == "__main__":
         type=str,
         choices=["local", "remote"],
     )
+    parser.add_argument(
+        "--handmade_DH",
+        "-hdh",
+        help="Use Handmade Dialogue History (and corres. LLM Module) instead of classical Huggingface's apply_chat_template.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--woz_mic",
+        "-wozmic",
+        help="Use Wizard-Of-Oz Microphone, that plays audio when 'm' key pressed, instead of classical Microphone.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--llm",
+        "-llm",
+        help="Choose the LLM you want to use.",
+        type=str,
+        default="llama3.1_8B_I",
+    )
+    parser.add_argument(
+        "--quantized_llm",
+        "-qllm",
+        help="Use Quantized version of LLM.",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--local_llm",
+        "-local_llm",
+        help="Set the path to the local LLM weights you want to use.",
+        type=str,
+        default=None,
+    )
+
     args = parser.parse_args()
     if args.cuda_test is not None:
         agent.test_cuda(args.cuda_test)
     else:
         if args.remote_computing is not None:
             if args.remote_computing == "local":
-                main_DM_remote_computing_local()
+                main_DM_remote_computing_local(
+                    wozmic=args.woz_mic,
+                )
             elif args.remote_computing == "remote":
-                main_DM_remote_computing_remote()
+                main_DM_remote_computing_remote(
+                    dh=args.handmade_DH,
+                    llm=args.llm,
+                    quantized=args.quantized_llm,
+                    local_llm=args.local_llm,
+                )
             else:
                 print("remote_computing argument set to something else than remote or local.")
         else:
-            main_DM()
+            main_DM(
+                dh=args.handmade_DH,
+                wozmic=args.woz_mic,
+                llm=args.llm,
+                quantized=args.quantized_llm,
+                local_llm=args.local_llm,
+            )
     plot_once(plot_config_path="configs/plot_config_DM.json")
