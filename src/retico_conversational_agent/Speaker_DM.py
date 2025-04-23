@@ -280,6 +280,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
             silence_bytes = b"\x00" * frame_count * self.channels * self.sample_width
             return (silence_bytes, pyaudio.paContinue)
         else:
+            # self.terminal_logger.info("SPEAKER DM output", debug=True)
             # if it is the first IU from new agent turn, which corresponds to the official agent BOT
             if self.latest_processed_iu is None or (
                 self.latest_processed_iu.turn_id is not None

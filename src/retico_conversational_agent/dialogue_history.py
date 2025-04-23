@@ -71,8 +71,9 @@ class DialogueHistory:
         prompt_format_config_file,
         terminal_logger,
         file_logger=None,
-        initial_system_prompt="",
         context_size=2000,
+        initial_system_prompt="",
+        initial_dh=None,
     ):
         """Initializes the DialogueHistory.
 
@@ -83,28 +84,34 @@ class DialogueHistory:
                 events in console.
             file_logger (FileLogger, optional): The logger used to store
                 events in a log file.. Defaults to None.
-            initial_system_prompt (str, optional): The initial system
-                prompt containing the dialogue scenario and/or
-                instructions. Defaults to "".
             context_size (int, optional): Max number of tokens that the
                 total prompt can contain (LLM context size). Defaults to
                 2000. Defaults to 2000.
+            initial_system_prompt (str, optional): The initial system
+                prompt containing the dialogue scenario and/or
+                instructions. Defaults to "".
         """
         self.terminal_logger = terminal_logger
         self.file_logger = file_logger
-        with open(prompt_format_config_file, "r", encoding="utf-8") as config:
-            self.prompt_format_config = json.load(config)
-        self.initial_system_prompt = initial_system_prompt
-        self.current_system_prompt = initial_system_prompt
-        self.dialogue_history = [
-            {
-                "turn_id": -1,
-                "speaker": "system_prompt",
-                "text": initial_system_prompt,
-            }
-        ]
         self.cpt_0 = 1
         self.context_size = context_size
+        with open(prompt_format_config_file, "r", encoding="utf-8") as config:
+            self.prompt_format_config = json.load(config)
+        if initial_dh is not None:
+            self.dialogue_history = initial_dh
+            if initial_dh[0]["role"] == "system_prompt":
+                self.initial_system_prompt = initial_dh[0]["content"]
+                self.current_system_prompt = initial_dh[0]["content"]
+        else:
+            self.initial_system_prompt = initial_system_prompt
+            self.current_system_prompt = initial_system_prompt
+            self.dialogue_history = [
+                {
+                    "turn_id": -1,
+                    "role": "system_prompt",
+                    "content": initial_system_prompt,
+                }
+            ]
 
     # Formatters
 
@@ -161,7 +168,7 @@ class DialogueHistory:
         Returns:
             str: the formatted sentence.
         """
-        return self.format(config_id=utterance["speaker"], text=utterance["text"])
+        return self.format(config_id=utterance["role"], text=utterance["content"])
 
     # Setters
 
@@ -172,13 +179,13 @@ class DialogueHistory:
             utterance (dict): a dict containing the speaker and the
                 turn's transcription (text of the sentences).
         """
-        assert set(("turn_id", "speaker", "text")) <= set(utterance)
+        assert set(("turn_id", "role", "content")) <= set(utterance)
         # insure that turn_id is not None, and increment turn_id for system that do not have a turn id cpt (like DM).
         utterance["turn_id"] = len(self.dialogue_history) if utterance["turn_id"] else utterance["turn_id"]
         self.dialogue_history.append(utterance)
         c = self.prompt_format_config
-        s = utterance["speaker"]
-        print(f"\n{c[s]['role']} {c[s]['role_sep']} {utterance['text']}")
+        s = utterance["role"]
+        print(f"\n{c[s]['role']} {c[s]['role_sep']} {utterance['content']}")
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
@@ -198,7 +205,7 @@ class DialogueHistory:
         """
         previous_system_prompt = self.current_system_prompt
         self.current_system_prompt = system_prompt
-        self.dialogue_history[0]["text"] = system_prompt
+        self.dialogue_history[0]["content"] = system_prompt
         return previous_system_prompt
 
     def prepare_dialogue_history(self, fun_tokenize):
@@ -223,11 +230,13 @@ class DialogueHistory:
         prompt = self.get_prompt(self.cpt_0)
         prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
         nb_tokens = len(prompt_tokens)
+        print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         while nb_tokens > self.context_size:
             self.cpt_0 += 1
             prompt = self.get_prompt(self.cpt_0)
             prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
             nb_tokens = len(prompt_tokens)
+            print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         return prompt, prompt_tokens
 
     def interruption_alignment_new_agent_sentence(self, utterance, punctuation_ids, interrupted_speaker_iu):
@@ -247,7 +256,7 @@ class DialogueHistory:
                 SpeakerModule's IncrementalUnit, used to align the agent
                 utterance.
         """
-        new_agent_sentence = utterance["text"].encode("utf-8")
+        new_agent_sentence = utterance["content"].encode("utf-8")
 
         # split the sentence into clauses
         sentence_clauses = []
@@ -261,7 +270,8 @@ class DialogueHistory:
         sentence_clauses = sentence_clauses[: interrupted_speaker_iu.clause_id + 1]
 
         # Shorten the last agent utterance until the last char outputted by the speakermodule before the interruption
-        sentence_clauses[-1] = sentence_clauses[-1][: interrupted_speaker_iu.char_id + 1]
+        if hasattr(interrupted_speaker_iu, "char_id") and interrupted_speaker_iu.char_id is not None:
+            sentence_clauses[-1] = sentence_clauses[-1][: interrupted_speaker_iu.char_id + 1]
 
         # Merge the clauses back together
         new_agent_sentence = b"".join(sentence_clauses)
@@ -277,7 +287,7 @@ class DialogueHistory:
         )
 
         # store the new sentence in the dialogue history
-        utterance["text"] = new_agent_sentence
+        utterance["content"] = new_agent_sentence
         self.append_utterance(utterance)
 
         print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
@@ -307,6 +317,7 @@ class DialogueHistory:
         """
         if end is None:
             end = len(self.dialogue_history)
+        print("start : ", start, " end : ", end)
         assert start > 0
         assert end >= start
         if system_prompt is not None:

@@ -8,6 +8,8 @@ from retico_conversational_agent.Speaker_DM import SpeakerDmModule
 from retico_conversational_agent.dialogue_history import DialogueHistory
 from retico_conversational_agent.dialogue_manager import DialogueManagerModule
 from retico_conversational_agent.test_cuda import test_cuda
+from retico_conversational_agent.dialogue_history_hf import DialogueHistoryHf
+from retico_conversational_agent.LLM_DM_HF import LlmDmModuleHf
 
 from retico_conversational_agent.additional_IUs import (
     VADTurnAudioIU,

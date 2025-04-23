@@ -1,0 +1,56 @@
+{
+    "mistral_inst": {
+        "quantized":{
+            "repo":"TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+            "model":"mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"mistralai/Mistral-7B-Instruct-v0.2"
+        }
+    },
+    "llama2_7B": {
+        "quantized":{
+            "repo":"TheBloke/Llama-2-7b-Chat-GGUF",
+            "model":"llama-2-7b-chat.q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"meta-llama/Llama-2-7b-chat-hf"
+        }
+    },
+    "llama3.1_8B": {
+        "quantized":{
+            "repo":"QuantFactory/Meta-Llama-3.1-8B-GGUF",
+            "model":"Meta-Llama-3.1-8B.Q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"meta-llama/Llama-3.1-8B"
+        }
+    },
+    "llama3.1_8B_I": {
+        "quantized":{
+            "repo":"QuantFactory/Meta-Llama-3.1-8B-Instruct-GGUF",
+            "model":"Meta-Llama-3.1-8B-Instruct.Q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"meta-llama/Llama-3.1-8B-Instruct"
+        }
+    },
+    "llama3.2_3B": {
+        "quantized":{
+            "repo":"QuantFactory/Llama-3.2-3B-GGUF",
+            "model":"Llama-3.2-3B.Q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"meta-llama/Llama-3.2-3B"
+        }
+    },
+    "llama3.2_3B_I": {
+        "quantized":{
+            "repo":"QuantFactory/Llama-3.2-3B-Instruct-GGUF",
+            "model":"Llama-3.2-3B-Instruct.Q4_K_M.gguf"
+        },
+        "original":{
+            "repo":"meta-llama/Llama-3.2-3B-Instruct"
+        }
+    }
+}

@@ -656,7 +656,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
             )
 
             dh = self.dialogue_history.get_dialogue_history()
-            last_sentence = dh[-1]["text"]
+            last_sentence = dh[-1]["content"]
             repeat_system_prompt = (
                 "This is a spoken dialog scenario between a teacher and a 8 years old child student. \
             The teacher is teaching mathematics to the child student. \
@@ -1486,7 +1486,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
             )
 
             dh = self.dialogue_history.get_dialogue_history()
-            last_sentence = dh[-1]["text"]
+            last_sentence = dh[-1]["content"]
             repeat_system_prompt = (
                 "This is a spoken dialog scenario between a teacher and a 8 years old child student. \
             The teacher is teaching mathematics to the child student. \

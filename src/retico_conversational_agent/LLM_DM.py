@@ -68,6 +68,7 @@ from retico_core.text import SpeechRecognitionIU
 from retico_core.log_utils import log_exception
 
 from .dialogue_history import DialogueHistory
+from .dialogue_history_hf import DialogueHistoryHf
 from .utils import device_definition
 from .additional_IUs import (
     VADTurnAudioIU,
@@ -198,7 +199,6 @@ class LlmDmModule(retico_core.AbstractModule):
         self.context_size = context_size
         self.device = device_definition(device)
         self.n_gpu_layers = 0 if self.device != "cuda" else n_gpu_layers
-        self.n_gpu_layers = 0 if self.device != "cuda" else n_gpu_layers
         self.top_k = top_k
         self.top_p = top_p
         self.temp = temp
@@ -257,8 +257,8 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": self.current_input[-1].turn_id,
-                "speaker": "user",
-                "text": user_sentence,
+                "role": "user",
+                "content": user_sentence,
             }
         )
 
@@ -276,8 +276,8 @@ class LlmDmModule(retico_core.AbstractModule):
         self.dialogue_history.append_utterance(
             {
                 "turn_id": turn_id,
-                "speaker": "agent",
-                "text": agent_sentence,
+                "role": "agent",
+                "content": agent_sentence,
             }
         )
 
@@ -302,8 +302,8 @@ class LlmDmModule(retico_core.AbstractModule):
         """
         utterance = {
             "turn_id": self.interrupted_speaker_iu.turn_id,
-            "speaker": "agent",
-            "text": new_agent_sentence,
+            "role": "agent",
+            "content": new_agent_sentence,
         }
         self.dialogue_history.interruption_alignment_new_agent_sentence(
             utterance, self.punctuation_ids, self.interrupted_speaker_iu
