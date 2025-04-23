@@ -4,6 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from functools import partial
 import torch
 import argparse
+import json
 
 import retico_core
 from retico_core import network
@@ -78,6 +79,7 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
     plot_live = False
     prompt_format_config = "configs/prompt_format_config.json"
     context_size = 2000
+    dh_size = 1800
 
     # AMQ parameters
     destination_local_mic_out = "/topic/local_mic_out"
@@ -109,12 +111,21 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
         window_duration=30,
     )
 
-    dialogue_history = agent.DialogueHistory(
-        prompt_format_config,
-        terminal_logger=terminal_logger,
-        initial_system_prompt=system_prompt,
-        context_size=context_size,
-    )
+    if dh:
+        dialogue_history = agent.DialogueHistory(
+            prompt_format_config,
+            terminal_logger=terminal_logger,
+            initial_system_prompt=system_prompt,
+            context_size=dh_size,
+        )
+        llm_init = agent.LlmDmModule
+    else:
+        dialogue_history = agent.DialogueHistoryHf(
+            terminal_logger=terminal_logger,
+            initial_system_prompt=system_prompt,
+            context_size=dh_size,
+        )
+        llm_init = agent.LlmDmModuleHf
 
     # create modules
     vad = agent.VadModule(
@@ -137,10 +148,22 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
         input_framerate=rate,
     )
 
-    llm = agent.LlmDmModule(
-        model_path,
-        None,
-        None,
+    model_repo = None
+    model_name = None
+    if local_llm is None:
+        with open("configs/LLMs.json") as models_file:
+            models = json.load(models_file)
+            model = models[llm]
+            if quantized:
+                model_repo = model["quantized"]["repo"]
+                model_name = model["quantized"]["model"]
+            else:  # TODO: implement original HF LLM initialization
+                model_repo = model["original"]["repo"]
+
+    llm = llm_init(
+        model_path=local_llm,
+        model_repo=model_repo,
+        model_name=model_name,
         dialogue_history=dialogue_history,
         printing=printing,
         device=device,
@@ -212,13 +235,13 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
     except Exception:
         terminal_logger.exception("exception in main")
         network.stop(vad)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
+    # finally:
+    #     plot_once(
+    #         plot_config_path=plot_config_path,
+    #     )
 
 
-def main_DM_remote_computing_local():
+def main_DM_remote_computing_local(wozmic: bool):
     # parameters definition
     printing = False
     log_folder = "logs/run"
@@ -257,8 +280,12 @@ def main_DM_remote_computing_local():
     )
 
     # create modules
-    # mic = audio.MicrophoneModule()
-    mic = WOZMicrophoneModule(frame_length=frame_length)
+    if wozmic:
+        mic = WOZMicrophoneModule(frame_length=frame_length)
+    else:
+        # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
+        # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
+        mic = retico_core.audio.MicrophoneModule()
 
     speaker = agent.SpeakerDmModule(
         rate=tts_model_samplerate,
@@ -303,10 +330,10 @@ def main_DM_remote_computing_local():
     except Exception:
         terminal_logger.exception("exception in main")
         network.stop(mic)
-    finally:
-        plot_once(
-            plot_config_path=plot_config_path,
-        )
+    # finally:
+    #     plot_once(
+    #         plot_config_path=plot_config_path,
+    #     )
 
 
 if __name__ == "__main__":
@@ -318,14 +345,51 @@ if __name__ == "__main__":
         help="Set to local or remote to run the system in multiple parts for remote computing (like clusters).",
         type=str,
         choices=["local", "remote"],
-        required=True,
+    )
+    parser.add_argument(
+        "--handmade_DH",
+        "-hdh",
+        help="Use Handmade Dialogue History (and corres. LLM Module) instead of classical Huggingface's apply_chat_template.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--woz_mic",
+        "-wozmic",
+        help="Use Wizard-Of-Oz Microphone, that plays audio when 'm' key pressed, instead of classical Microphone.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--llm",
+        "-llm",
+        help="Choose the LLM you want to use.",
+        type=str,
+        default="llama3.1_8B_I",
+    )
+    parser.add_argument(
+        "--quantized_llm",
+        "-qllm",
+        help="Use Quantized version of LLM.",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--local_llm",
+        "-local_llm",
+        help="Set the path to the local LLM weights you want to use.",
+        type=str,
+        default=None,
     )
     args = parser.parse_args()
     if args.remote_computing is not None:
         if args.remote_computing == "local":
-            main_DM_remote_computing_local()
+            main_DM_remote_computing_local(wozmic=args.woz_mic)
         elif args.remote_computing == "remote":
-            main_DM_remote_computing_remote()
+            main_DM_remote_computing_remote(
+                dh=args.handmade_DH,
+                llm=args.llm,
+                quantized=args.quantized_llm,
+                local_llm=args.local_llm,
+            )
         else:
             print("remote_computing argument set to something else than remote or local.")
-    plot_once(plot_config_path="configs/plot_config_DM.json")
+    # plot_once(plot_config_path="configs/plot_config_DM.json")

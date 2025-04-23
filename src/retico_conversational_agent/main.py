@@ -128,7 +128,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             prompt_format_config,
             terminal_logger=terminal_logger,
             initial_system_prompt=system_prompt,
-            context_size=context_size,
+            context_size=dh_size,
         )
         llm_init = agent.LlmDmModule
     else:
@@ -291,4 +291,4 @@ if __name__ == "__main__":
                 quantized=args.quantized_llm,
                 local_llm=args.local_llm,
             )
-    plot_once(plot_config_path="configs/plot_config_DM.json")
+    # plot_once(plot_config_path="configs/plot_config_DM.json")
