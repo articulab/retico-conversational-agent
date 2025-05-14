@@ -154,6 +154,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         temp=1.0,
         repeat_penalty=1.1,
         verbose=False,
+        incrementality_level="clause",  # turn, sentence, clause, word
         **kwargs,
     ):
         """Initializes the LlamaCppMemoryIncremental Module.
@@ -224,6 +225,20 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         self.last_turn_agent_sentence_nb_token = None
         self.last_turn_agent_sentence_turn_id = None
         self.last_turn_last_iu = None
+
+        # incrementality level
+        self.incrementality_level = incrementality_level  # turn, sentence, clause, word
+        self.end_of_sentence_strings = [".", "!", "?", "..."]
+        self.end_of_clause_strings = self.end_of_sentence_strings + [",", ";", ":"]
+        match self.incrementality_level:
+            case "turn":
+                self.check_end_of_incremental_chunk = self.is_word_an_end_of_turn
+            case "sentence":
+                self.check_end_of_incremental_chunk = self.is_word_an_end_of_sentence
+            case "clause":
+                self.check_end_of_incremental_chunk = self.is_word_an_end_of_clause
+            case "word":
+                self.check_end_of_incremental_chunk = lambda x: True
 
     #######
     # LLM MODULE
@@ -311,7 +326,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         """
         # it could be the DM that has that function, because the DM receives the IUs from speaker module too
         self.interrupted_speaker_iu = iu
-        self.terminal_logger.info(
+        self.terminal_logger.debug(
             "interruption alignement LLM",
             debug=True,
             interrupted_iu_turn_id=iu.turn_id,
@@ -356,7 +371,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         # Define the parameters
         self.which_stop_criteria = None
         self.nb_clauses = 0
-        self.file_logger.info("start_process")
+        self.file_logger.debug("start_process")
 
         # IMPORTANT : the stop crit is executed after the body of the for loop,
         # which means token here is seen inside the loop before being accessible in stop crit funct
@@ -400,7 +415,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         # Define the parameters
         print("final_prompt = ", history)
         self.nb_clauses = 0
-        self.file_logger.info("start_process")
+        self.file_logger.debug("start_process")
         self.which_stop_criteria = None
 
         tokens = []
@@ -438,9 +453,17 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         """Check if the last token is a punctuation token."""
         return self.model.detokenize([token]).decode("utf-8", errors="ignore") in self.punctuation_text
 
-    def is_word_punctuation(self, word: str):
-        """Check if the last token is a punctuation token."""
-        return word in self.punctuation_text
+    def is_word_an_end_of_sentence(self, word: str, token: int):
+        """Check if the last token is an end of sentence word."""
+        return word in self.end_of_sentence_strings
+
+    def is_word_an_end_of_clause(self, word: str, token: int):
+        """Check if the last word is an end of clause word."""
+        return word in self.end_of_clause_strings
+
+    def is_word_an_end_of_turn(self, word: str, token: int):
+        """Check if token is model EOS token."""
+        return token == self.model.token_eos()
 
     def incremental_iu_sending_hf(self, token):
         new_word = self.model.detokenize([token]).decode("utf-8", errors="ignore")
@@ -455,46 +478,48 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         self.current_output.append(output_iu)
         um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
-        if self.is_word_punctuation(new_word):
+        if self.check_end_of_incremental_chunk(new_word, token):
             self.nb_clauses += 1
             for iu in self.current_output:
                 self.commit(iu)
                 um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.file_logger.info("send_clause")
-            self.terminal_logger.info("send_clause", debug=True)
+            # self.file_logger.debug("send_clause")
+            # self.terminal_logger.debug("send_clause", debug=True)
+            self.file_logger.debug(f"send_{self.incrementality_level}")
+            self.terminal_logger.debug(f"send_{self.incrementality_level}")
             self.current_output = []
         self.append(um)
 
-    def incremental_iu_sending_hf_2(self, tokens):
-        new_text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
-        um, new_words = retico_core.text.get_text_increment(self, new_text)
-        last_iu = None if len(self.current_input) == 0 else self.current_input[-1]
-        for w in new_words:
-            output_iu = self.create_iu(
-                grounded_in=last_iu,
-                text=w,
-                turn_id=last_iu.turn_id,
-                clause_id=self.nb_clauses,
-            )
-            self.current_output.append(output_iu)
-            um.add_iu(output_iu, retico_core.UpdateType.ADD)
+    # def incremental_iu_sending_hf_2(self, tokens):
+    #     new_text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+    #     um, new_words = retico_core.text.get_text_increment(self, new_text)
+    #     last_iu = None if len(self.current_input) == 0 else self.current_input[-1]
+    #     for w in new_words:
+    #         output_iu = self.create_iu(
+    #             grounded_in=last_iu,
+    #             text=w,
+    #             turn_id=last_iu.turn_id,
+    #             clause_id=self.nb_clauses,
+    #         )
+    #         self.current_output.append(output_iu)
+    #         um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
-        if self.finish_with_punctuation(tokens):
-            self.terminal_logger.info("new_text", new_text=new_text, debug=True)
-            self.terminal_logger.info("new_words", new_words=new_words, debug=True)
-            self.terminal_logger.info(
-                "new_words LLM DM",
-                new_words=[self.model.detokenize([t]).decode("utf-8", errors="ignore") for t in tokens],
-                debug=True,
-            )
-            self.nb_clauses += 1
-            for iu in self.current_output:
-                self.commit(iu)
-                um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.file_logger.info("send_clause")
-            self.terminal_logger.info("send_clause", debug=True)
-            self.current_output = []
-        self.append(um)
+    #     if self.finish_with_punctuation(tokens):
+    #         self.terminal_logger.debug("new_text", new_text=new_text, debug=True)
+    #         self.terminal_logger.debug("new_words", new_words=new_words, debug=True)
+    #         self.terminal_logger.debug(
+    #             "new_words LLM DM",
+    #             new_words=[self.model.detokenize([t]).decode("utf-8", errors="ignore") for t in tokens],
+    #             debug=True,
+    #         )
+    #         self.nb_clauses += 1
+    #         for iu in self.current_output:
+    #             self.commit(iu)
+    #             um.add_iu(iu, retico_core.UpdateType.COMMIT)
+    #         self.file_logger.debug("send_clause")
+    #         self.terminal_logger.debug("send_clause", debug=True)
+    #         self.current_output = []
+    #     self.append(um)
 
     def process_incremental(self):
         """Function that calls the submodule LLamaCppMemoryIncremental to
@@ -518,7 +543,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         um = retico_core.UpdateMessage()
         print("self.which_stop_criteria =", self.which_stop_criteria)
         if self.which_stop_criteria == "interruption":
-            self.terminal_logger.info("interruption", debug=True)
+            self.terminal_logger.debug("interruption", debug=True)
             # REVOKE every word in interrupted clause (every IU in current_output)
             for iu in self.current_output:
                 self.revoke(iu, remove_revoked=False)
@@ -537,7 +562,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
                 turn_id=last_processed_iu.turn_id,
             )
             um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.terminal_logger.info(
+            self.terminal_logger.debug(
                 "stop_token",
                 debug=True,
             )
@@ -554,7 +579,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
                 turn_id=last_processed_iu.turn_id,
             )
             um.add_iu(iu, retico_core.UpdateType.COMMIT)
-            self.terminal_logger.info(
+            self.terminal_logger.debug(
                 "stop_token",
                 debug=True,
             )
@@ -567,7 +592,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
 
         print(f"LLM:\n{self.last_turn_agent_sentence}")
 
-        self.terminal_logger.info(
+        self.terminal_logger.debug(
             "EOT STOP CRIT",
             len_um=len(um),
             finals=[iu.final for iu, _ in um],
@@ -609,25 +634,25 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             elif isinstance(iu, DMIU):
                 if iu.action == "hard_interruption":
                     self.interruption = True
-                    self.file_logger.info("hard_interruption")
+                    self.file_logger.debug("hard_interruption")
                 elif iu.action == "soft_interruption":
-                    self.file_logger.info("soft_interruption")
+                    self.file_logger.debug("soft_interruption")
                 elif iu.action == "stop_turn_id":
                     if (
                         len(self.current_output) > 0
                     ):  # do we keep this ? we could interrupt even if it is empty by keeping track of last outputted iu
-                        self.terminal_logger.info("STOP TURN ID", debug=True)
-                        self.file_logger.info("stop_turn_id")
+                        self.terminal_logger.debug("STOP TURN ID", debug=True)
+                        self.file_logger.debug("stop_turn_id")
                         if iu.turn_id > self.current_output[-1].turn_id:
                             self.interruption = True  # test this
                             # we would have to do something much more simple, just stop generation and clear current_output, no alignement or nothing
             elif isinstance(iu, SpeakerAlignementIU):
-                # self.terminal_logger.info("LLM receives SpeakerAlignementIU", debug=True)
+                # self.terminal_logger.debug("LLM receives SpeakerAlignementIU", debug=True)
                 if ut == retico_core.UpdateType.ADD:
                     if iu.event == "interruption":
                         self.interruption_alignment_last_agent_sentence(iu)
                     if iu.event == "agent_EOT":
-                        self.file_logger.info("LLM agent_EOT")
+                        self.file_logger.debug("LLM agent_EOT")
                         self.new_agent_sentence(
                             self.last_turn_agent_sentence,
                             self.last_turn_last_iu.turn_id,
@@ -653,10 +678,10 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             try:
                 time.sleep(0.01)
                 if self.full_sentence:
-                    self.terminal_logger.info("start_answer_generation")
-                    self.file_logger.info("start_answer_generation")
+                    self.terminal_logger.debug("start_answer_generation")
+                    self.file_logger.debug("start_answer_generation")
                     self.process_incremental()
-                    self.file_logger.info("EOT")
+                    self.file_logger.debug("EOT")
                     self.full_sentence = False
             except Exception as e:
                 log_exception(module=self, exception=e)

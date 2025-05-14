@@ -77,20 +77,21 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     dh_size = 1500
     # context_size = 500
     # dh_size = 300
+    incrementality_level = "clause"
 
     # filters
     filters = [
         partial(
             filter_cases,
             cases=[
-                [("debug", [True])],
+                # [("debug", [True])],
                 # [("module", ["TTS DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("level", ["warning", "error"])],
+                [("level", ["debug", "warning", "error"])],
             ],
             # cases=[
             #     [("module", ["DialogueManager Module"])],
@@ -99,22 +100,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    # terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters=filters)
-    terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
-
-    terminal_logger.info("test")
-    file_logger.info("test")
-    terminal_logger.debug("test")
-    file_logger.debug("test")
-    terminal_logger.warning("test")
-    file_logger.warning("test")
-    terminal_logger.error("test")
-    file_logger.error("test")
-    try:
-        raise Exception("test")
-    except Exception:
-        terminal_logger.exception("test")
-        file_logger.exception("test")
+    terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters_terminal=filters)
+    # terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
 
     # configure plot
     # configurate_plot(
@@ -173,6 +160,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         printing=printing,
         device=device,
         verbose=True,
+        incrementality_level=incrementality_level,
     )
 
     dm = agent.DialogueManagerModule(
@@ -197,6 +185,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         printing=printing,
         frame_duration=tts_frame_length,
         device=device,
+        incrementality_level=incrementality_level,
     )
 
     speaker = agent.SpeakerDmModule(
