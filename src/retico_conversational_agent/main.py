@@ -99,16 +99,30 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    # terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters=filters)
+    terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
+
+    terminal_logger.info("test")
+    file_logger.info("test")
+    terminal_logger.debug("test")
+    file_logger.debug("test")
+    terminal_logger.warning("test")
+    file_logger.warning("test")
+    terminal_logger.error("test")
+    file_logger.error("test")
+    try:
+        raise Exception("test")
+    except Exception:
+        terminal_logger.exception("test")
+        file_logger.exception("test")
 
     # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
+    # configurate_plot(
+    #     is_plot_live=plot_live,
+    #     refreshing_time=1,
+    #     plot_config_path=plot_config_path,
+    #     window_duration=30,
+    # )
 
     # create modules
     if wozmic:
@@ -189,7 +203,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         rate=tts_model_samplerate,
     )
 
-    # create network
+    # # create network
     mic.subscribe(vad)
     vad.subscribe(dm)
     dm.subscribe(asr)

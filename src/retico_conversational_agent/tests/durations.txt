@@ -1,0 +1,50 @@
+
+With TL console outputs 
+
+100000
+Duration test 0 : 0:00:00 0:00:00
+Duration test 1 : 0:00:27.816041 0:00:00.000278
+Duration test 2 : 0:00:04.593020 0:00:00.000046
+Duration test 3 : 0:00:08.537763 0:00:00.000085
+Duration test 4 : 0:00:02.552092 0:00:00.000026
+
+10000
+Duration test 0 : 0:00:00.003415 0:00:00
+Duration test 1 : 0:00:04.375730 0:00:00.000438
+Duration test 2 : 0:00:00.370033 0:00:00.000037
+Duration test 3 : 0:00:00.826464 0:00:00.000083
+Duration test 4 : 0:00:00.279069 0:00:00.000028
+
+1000
+Duration test 0 : 0:00:00 0:00:00
+Duration test 1 : 0:00:00.127629 0:00:00.000128
+Duration test 2 : 0:00:00.009445 0:00:00.000009
+Duration test 3 : 0:00:00.014551 0:00:00.000015
+Duration test 4 : 0:00:00.004859 0:00:00.000005
+
+
+Without TL console outputs 
+
+1000
+Duration test 0 : 0:00:00 0:00:00
+Duration test 1 : 0:00:00.008824 0:00:00.000009
+Duration test 2 : 0:00:00.020375 0:00:00.000020
+Duration test 3 : 0:00:00.004449 0:00:00.000004
+
+10000
+Duration test 0 : 0:00:00 0:00:00
+Duration test 1 : 0:00:00.079849 0:00:00.000008
+Duration test 2 : 0:00:00.188063 0:00:00.000019
+Duration test 3 : 0:00:00.057290 0:00:00.000006
+
+100000
+Duration test 0 : 0:00:00.004006 0:00:00
+Duration test 1 : 0:00:00.837451 0:00:00.000008
+Duration test 2 : 0:00:01.952446 0:00:00.000020
+Duration test 3 : 0:00:02.511430 0:00:00.000025
+
+1000000
+Duration test 0 : 0:00:00.024090 0:00:00
+Duration test 1 : 0:00:36.572759 0:00:00.000037
+Duration test 2 : 0:01:01.896152 0:00:00.000062
+Duration test 3 : 0:00:26.016049 0:00:00.000026
