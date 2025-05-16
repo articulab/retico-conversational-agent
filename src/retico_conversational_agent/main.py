@@ -66,6 +66,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     # tts_model = "vits_vctk"
     tts_model_samplerate = 48000
     tts_model = "jenny"
+    # tts_model = "xtts"
+    tts_speaker_id = "Gitta Nikolina"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
@@ -179,8 +181,9 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
 
     tts = agent.TtsDmModule(
         language="en",
-        model=tts_model,
-        printing=printing,
+        model_name=tts_model,
+        speaker_id=tts_speaker_id,
+        verbose=printing,
         frame_duration=tts_frame_length,
         device=device,
     )
