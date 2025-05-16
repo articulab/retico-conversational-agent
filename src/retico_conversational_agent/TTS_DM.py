@@ -546,6 +546,22 @@ class TtsDmModule(retico_core.AbstractModule):
         new_buffer = []
 
         # Check that input words matches synthesized audio
+        tokens_gpt = outputs[0]["outputs"]["gpt_codes"].squeeze().tolist()
+        att_align = outputs[0]["outputs"]["att_alignment"]
+        token_timestamps = outputs[0]["outputs"]["token_timestamps"]
+        print("att_align shape", att_align.shape)
+        print("len token_timestamps", len(token_timestamps))
+        print("token_timestamps", token_timestamps)
+        print("len(audio_words_ends)", len(audio_words_ends))
+        print("len(words)", len(words))
+        print("len(durations)", len(durations))
+        print("len(tokens)", len(tokens))
+        print("len(tokens_gpt)", len(tokens_gpt))
+        print("tokens gpt", tokens_gpt)
+        print("tokens", tokens)
+        print("words", words)
+        print("self.space_token", self.space_token)
+        print("audio_words_ends", audio_words_ends)
         assert len(audio_words_ends) == len(words)
         assert len(durations) == len(tokens)
 

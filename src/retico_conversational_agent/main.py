@@ -65,8 +65,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     # tts_model_samplerate = 22050
     # tts_model = "vits_vctk"
     tts_model_samplerate = 48000
-    tts_model = "jenny"
-    # tts_model = "xtts"
+    # tts_model = "jenny"
+    tts_model = "xtts"
     tts_speaker_id = "Gitta Nikolina"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
