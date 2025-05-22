@@ -208,9 +208,9 @@ model = TTS(model_name).to("cuda")
 samplerate = 24000
 
 
-text = "Hello, how are you?"
+# text = "Hello, how are you?"
 # text = "How are you doing this sunny morning? Are you good?"
-# text = "Change will not come if we wait for some other person or some other time."
+text = "Change will not come if we wait for some other person or some other time."
 
 execute_tts(
     text=text,
