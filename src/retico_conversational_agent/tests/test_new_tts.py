@@ -1,8 +1,11 @@
 import os
 import wave
+
+import torch
 from TTS.api import TTS
 import numpy as np
 import retico_core
+import alignment_xtts
 
 
 def synthesize(text, is_multilingual, model, language, speaker_id=None, speaker_wav=None):
@@ -67,8 +70,14 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
         if x == space_token or i == len(tokens) - 1:
             audio_words_ends.append(i + 1)
     audio_data = outputs[0]["wav"]
-    words_durations = outputs[0]["outputs"]["words_durations"].squeeze().tolist()
-    durations_len = outputs[0]["outputs"]["durations_len"].squeeze().tolist()
+    words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
+    words_durations_in_nb_frames = outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
+
+    words_durations_in_nb_frames2, words_durations_in_sec2, alignments = alignment_xtts.get_words_durations(
+        outputs[0]["alignment_required_data"]
+    )
+
+    assert (words_durations_in_nb_frames2 == words_durations_in_nb_frames).all()
 
     # if isinstance(raw_audio, str):
     #     audio_data = eval(raw_audio)
@@ -98,7 +107,7 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
     #     with open(f"audios_tts/audio_chunk_{i}.wav", "wb") as f:
     #         f.write(audio_chunk)
     #     previous_duration += words_duration
-    for i, duration_len in enumerate(durations_len):
+    for i, duration_len in enumerate(words_durations_in_nb_frames):
         start = int(previous_duration)
         end = int(previous_duration + duration_len)
         print("start", start, "end", end)
@@ -160,8 +169,8 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
     # print("words", words)
     # print("self.space_token", space_token)
     # print("audio_words_ends", audio_words_ends)
-    assert len(audio_words_ends) == len(words)
-    assert len(durations) == len(tokens)
+    # assert len(audio_words_ends) == len(words)
+    # assert len(durations) == len(tokens)
 
     # # calculate audio duration per word
     # words_duration = []
@@ -170,32 +179,41 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
     #     # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
     #     words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
     #     old_len_w = s_id
-    # words_last_frame = np.cumsum(words_duration).tolist()
+    words_last_frame = np.cumsum(words_durations_in_nb_frames).tolist()
 
-    # # Split the audio into same-size chunks
-    # for chunk_start in range(0, len(audio_data), self.chunk_size):
-    #     chunk_wav = audio_data[chunk_start : chunk_start + self.chunk_size]
-    #     chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
-    #     if len(chunk) < self.chunk_size_bytes:
-    #         chunk = chunk + b"\x00" * (self.chunk_size_bytes - len(chunk))
-    #     # Calculates last word that started during the audio chunk
-    #     word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + self.chunk_size])
-    #     word_id = min(word_id, len(words) - 1)
-    #     grounded_iu = clause_ius[word_id]
-    #     char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
-    #     iu = self.create_iu(
-    #         grounded_in=grounded_iu,
-    #         raw_audio=chunk,
-    #         chunk_size=self.chunk_size,
-    #         rate=self.samplerate,
-    #         sample_width=self.samplewidth,
-    #         grounded_word=words[word_id],
-    #         word_id=int(word_id),
-    #         char_id=char_id,
-    #         turn_id=grounded_iu.turn_id,
-    #         clause_id=grounded_iu.clause_id,
-    #     )
-    #     new_buffer.append(iu)
+    print("current_text", current_text)
+    print("words", words)
+    chunk_size = 512
+    chunk_size_bytes = chunk_size * sample_width
+    # Split the audio into same-size chunks
+    for chunk_start in range(0, len(audio_data), chunk_size):
+        chunk_wav = audio_data[chunk_start : chunk_start + chunk_size]
+        chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
+        # chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=chunk)
+        if len(chunk) < chunk_size_bytes:
+            chunk = chunk + b"\x00" * (chunk_size_bytes - len(chunk))
+        # Calculates last word that started during the audio chunk
+        word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + chunk_size])
+
+        word_id = min(word_id, len(words) - 1)
+        # grounded_iu = clause_ius[word_id]
+        grounded_word = words[word_id]
+        char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
+        print("word_id", word_id, "char_id", char_id)
+        print("grounded_word", grounded_word, "sentence_stop", current_text[: char_id + 1])
+        # iu = self.create_iu(
+        #     grounded_in=grounded_iu,
+        #     raw_audio=chunk,
+        #     chunk_size=chunk_size,
+        #     rate=samplerate,
+        #     sample_width=sample_width,
+        #     grounded_word=words[word_id],
+        #     word_id=int(word_id),
+        #     char_id=char_id,
+        #     turn_id=grounded_iu.turn_id,
+        #     clause_id=grounded_iu.clause_id,
+        # )
+        # new_buffer.append(iu)
     # return new_buffer
 
 
@@ -204,12 +222,14 @@ model_name = "tts_models/multilingual/multi-dataset/xtts_v2"
 speaker_id = "Gitta Nikolina"
 language = "en"
 is_multilingual = "multilingual" in model_name
-model = TTS(model_name).to("cuda")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = TTS(model_name).to(device)
 samplerate = 24000
 
 
 # text = "Hello, how are you?"
 # text = "How are you doing this sunny morning? Are you good?"
+text = "How are you doing this sunny morning, Are you good ? is it -like the other day- a sunny day? It's looking like it !"
 text = "Change will not come if we wait for some other person or some other time."
 
 execute_tts(

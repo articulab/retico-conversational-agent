@@ -64,7 +64,9 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     rate = 16000
     # tts_model_samplerate = 22050
     # tts_model = "vits_vctk"
-    tts_model_samplerate = 48000
+    # tts_model_samplerate = 48000
+    tts_model_samplerate = 24000
+    # tts_model_samplerate = 12000
     # tts_model = "jenny"
     tts_model = "xtts"
     tts_speaker_id = "Gitta Nikolina"

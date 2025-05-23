@@ -41,6 +41,8 @@ from .additional_IUs import (
     TextAlignedAudioIU,
     DMIU,
 )
+from .alignment_xtts import get_words_durations
+from rich.console import Console
 
 
 class TtsDmModule(retico_core.AbstractModule):
@@ -534,46 +536,49 @@ class TtsDmModule(retico_core.AbstractModule):
             tokens = self.model.synthesizer.tts_model.tokenizer.text_to_ids(current_text)
         self.file_logger.info("after_alignement")
 
-        audio_words_ends = []
-        for i, x in enumerate(tokens):
-            if x == self.space_token or i == len(tokens) - 1:
-                audio_words_ends.append(i + 1)
         audio_data = outputs[0]["wav"]
-        durations = outputs[0]["outputs"]["durations"].squeeze().tolist()
         len_wav = len(audio_data)
-        total_duration = int(sum(durations))
-        nb_fram_per_dur = len_wav / total_duration
-        new_buffer = []
 
-        # Check that input words matches synthesized audio
-        tokens_gpt = outputs[0]["outputs"]["gpt_codes"].squeeze().tolist()
-        att_align = outputs[0]["outputs"]["att_alignment"]
-        token_timestamps = outputs[0]["outputs"]["token_timestamps"]
-        print("att_align shape", att_align.shape)
-        print("len token_timestamps", len(token_timestamps))
-        print("token_timestamps", token_timestamps)
-        print("len(audio_words_ends)", len(audio_words_ends))
-        print("len(words)", len(words))
-        print("len(durations)", len(durations))
-        print("len(tokens)", len(tokens))
-        print("len(tokens_gpt)", len(tokens_gpt))
-        print("tokens gpt", tokens_gpt)
-        print("tokens", tokens)
-        print("words", words)
-        print("self.space_token", self.space_token)
-        print("audio_words_ends", audio_words_ends)
-        assert len(audio_words_ends) == len(words)
-        assert len(durations) == len(tokens)
+        try:
+            if self.model_name == "tts_models/en/jenny/jenny":
+                durations = outputs[0]["outputs"]["durations"].squeeze().tolist()
+                total_duration = int(sum(durations))
+                nb_fram_per_dur = len_wav / total_duration
+                audio_words_ends = []
+                for i, x in enumerate(tokens):
+                    if x == self.space_token or i == len(tokens) - 1:
+                        audio_words_ends.append(i + 1)
+                # calculate audio duration per word
+                words_duration = []
+                old_len_w = 0
+                for s_id in audio_words_ends:
+                    # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
+                    words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
+                    old_len_w = s_id
+            if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
+                try:
+                    words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
+                    words_durations_in_nb_frames = (
+                        outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
+                    )
+                except Exception:
+                    alignment_required_data = outputs[0]["alignment_required_data"]
+                    words_durations_in_nb_frames, words_durations_in_sec, alignments = get_words_durations(
+                        alignment_required_data
+                    )
+                words_duration = words_durations_in_nb_frames
+        except Exception as e:
+            console = Console()
+            console.print_exception(show_locals=False)
+            time.sleep(30)
+            # print(e)
+            print("\n\n\nLALALA")
+            assert False
 
-        # calculate audio duration per word
-        words_duration = []
-        old_len_w = 0
-        for s_id in audio_words_ends:
-            # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
-            words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
-            old_len_w = s_id
+        # # Check that input words matches synthesized audio
+        assert len(words_duration) == len(words)
         words_last_frame = np.cumsum(words_duration).tolist()
-
+        new_buffer = []
         # Split the audio into same-size chunks
         for chunk_start in range(0, len(audio_data), self.chunk_size):
             chunk_wav = audio_data[chunk_start : chunk_start + self.chunk_size]
