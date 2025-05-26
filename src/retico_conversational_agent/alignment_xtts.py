@@ -256,58 +256,86 @@ def extract_token_durations(
     )  # durations per text token, and raw alignment map
 
 
+def word_split(text_tokens, space_token=2, split_method="space_end", rm_lang=True):
+    """
+    Splits text tokens into words based on space tokens.
+
+    Args:
+        text_tokens (torch.Tensor): The text tokens tensor.
+        space_token (int): The token ID representing a space.
+
+    Returns:
+        list: A list of word token indices.
+    """
+    space_token_ids = np.where(text_tokens[0].cpu() == space_token)[0]
+    if split_method == "space":
+        all_indices = [0] + space_token_ids.tolist() + [len(text_tokens[0])]
+        words_ids = [[all_indices[i], all_indices[i + 1]] for i in range(len(all_indices) - 1)]
+    elif split_method == "space_end":
+        all_indices = [0] + (space_token_ids + 1).tolist() + [len(text_tokens[0])]
+        words_ids = [[all_indices[i], all_indices[i + 1]] for i in range(len(all_indices) - 1)]
+    elif split_method == "exclude_space":
+        all_indices = [-1] + space_token_ids.tolist() + [len(text_tokens[0])]
+        words_ids = [[all_indices[i] + 1, all_indices[i + 1]] for i in range(len(all_indices) - 1)]
+    if rm_lang:
+        words_ids[0][0] += 1  # remove the first token (language token)
+    return np.array(words_ids)
+
+
 def get_dur(gpt_cond_latent_shape, text_tokens, att_attentions, detokenized_text_tokens, space_token=2):
     print("text tokens : ", text_tokens)
     print("gpt_cond_latent shape : ", gpt_cond_latent_shape)
     print("detokenized text : ", detokenized_text_tokens)
     print("space token : ", space_token)
     # assert space_token == 2
-    space_token_ids = np.where(text_tokens[0].cpu() == space_token)[0]
-    print("space_token_ids : ", space_token_ids)
+    # space_token_ids = np.where(text_tokens[0].cpu() == space_token)[0]
+    # print("space_token_ids : ", space_token_ids)
 
-    if space_token_ids.shape[0] == 0:
-        print("No space token found in text tokens.")
-        words_ids = np.array([[0, text_tokens.shape[-1]]])
-    else:
-        words_ids_list = []
-        # method 1 : no lan
-        words_ids = np.concatenate(
-            (
-                [[1, space_token_ids[0]]],
-                [[space_token_ids[i], space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
-                [[space_token_ids[-1], text_tokens.shape[-1]]],
-            )
-        )
-        words_ids_list.append(words_ids)
-        print("words_ids : ", words_ids)
-        print(
-            "words_ids words : ",
-            [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))],
-        )
+    words_ids = word_split(text_tokens)
 
-        # # method 2 : no lan, no punctuation, words include spaces
-        # words_ids = np.concatenate(
-        #     (
-        #         [[1, space_token_ids[0]]],
-        #         [[space_token_ids[i], space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
-        #         [[space_token_ids[-1], text_tokens.shape[-1] - 1]],
-        #     )
-        # )
-        # words_ids_list.append(words_ids)
-        # print("words_ids : ", words_ids)
-        # print("words_ids words : ", [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))])
+    # if space_token_ids.shape[0] == 0:
+    #     print("No space token found in text tokens.")
+    #     words_ids = np.array([[0, text_tokens.shape[-1]]])
+    # else:
+    #     words_ids_list = []
+    #     # method 1 : no lan
+    #     words_ids = np.concatenate(
+    #         (
+    #             [[1, space_token_ids[0]]],
+    #             [[space_token_ids[i], space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
+    #             [[space_token_ids[-1], text_tokens.shape[-1]]],
+    #         )
+    #     )
+    #     words_ids_list.append(words_ids)
+    #     print("words_ids : ", words_ids)
+    #     print(
+    #         "words_ids words : ",
+    #         [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))],
+    #     )
 
-        # # method 3 : no lan, no punctuation, words does not include spaces
-        # words_ids = np.concatenate(
-        #     (
-        #         [[1, space_token_ids[0]]],
-        #         [[space_token_ids[i] + 1, space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
-        #         [[space_token_ids[-1] + 1, text_tokens.shape[-1] - 1]],
-        #     )
-        # )
-        # words_ids_list.append(words_ids)
-        # print("words_ids : ", words_ids)
-        # print("words_ids words : ", [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))])
+    # # method 2 : no lan, no punctuation, words include spaces
+    # words_ids = np.concatenate(
+    #     (
+    #         [[1, space_token_ids[0]]],
+    #         [[space_token_ids[i], space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
+    #         [[space_token_ids[-1], text_tokens.shape[-1] - 1]],
+    #     )
+    # )
+    # words_ids_list.append(words_ids)
+    # print("words_ids : ", words_ids)
+    # print("words_ids words : ", [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))])
+
+    # # method 3 : no lan, no punctuation, words does not include spaces
+    # words_ids = np.concatenate(
+    #     (
+    #         [[1, space_token_ids[0]]],
+    #         [[space_token_ids[i] + 1, space_token_ids[i + 1]] for i in range(len(space_token_ids) - 1)],
+    #         [[space_token_ids[-1] + 1, text_tokens.shape[-1] - 1]],
+    #     )
+    # )
+    # words_ids_list.append(words_ids)
+    # print("words_ids : ", words_ids)
+    # print("words_ids words : ", [detokenized_text_tokens[words_ids[i][0] : words_ids[i][1]] for i in range(len(words_ids))])
 
     # k_len = gpt_cond_latent_shape[1] + bos + num_text_tokens + eos + start_audio_token ?
     start_text_token = gpt_cond_latent_shape[1] + 1

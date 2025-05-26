@@ -538,6 +538,7 @@ class TtsDmModule(retico_core.AbstractModule):
 
         audio_data = outputs[0]["wav"]
         len_wav = len(audio_data)
+        self.terminal_logger.debug("wav", len_wav=len_wav, type=type(audio_data), start=audio_data[:30])
 
         try:
             if self.model_name == "tts_models/en/jenny/jenny":
@@ -575,6 +576,7 @@ class TtsDmModule(retico_core.AbstractModule):
             print("\n\n\nLALALA")
             assert False
 
+        self.terminal_logger.debug("words_duration", words_duration)
         # # Check that input words matches synthesized audio
         assert len(words_duration) == len(words)
         words_last_frame = np.cumsum(words_duration).tolist()
@@ -659,7 +661,10 @@ class TtsDmModule(retico_core.AbstractModule):
     def setup(self):
         super().setup()
         self.model = TTS(self.model_name).to(self.device)
-        self.samplerate = self.model.synthesizer.tts_config.get("audio")["sample_rate"]
+        if "xtts" in self.model_name:
+            self.samplerate = 24000
+        else:
+            self.samplerate = self.model.synthesizer.tts_config.get("audio")["sample_rate"]
         self.chunk_size = int(self.samplerate * self.frame_duration)
         self.chunk_size_bytes = self.chunk_size * self.samplewidth
         if self.is_multilingual:

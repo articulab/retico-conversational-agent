@@ -62,14 +62,16 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     tts_frame_length = 0.2
     # tts_frame_length = 0.02
     rate = 16000
-    # tts_model_samplerate = 22050
+
     # tts_model = "vits_vctk"
     # tts_model_samplerate = 48000
     tts_model_samplerate = 24000
+    # tts_model_samplerate = 22050
     # tts_model_samplerate = 12000
     # tts_model = "jenny"
     tts_model = "xtts"
-    tts_speaker_id = "Gitta Nikolina"
+    # tts_speaker_id = "Gitta Nikolina"
+    tts_speaker_id = "Uta Obando"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
@@ -88,13 +90,13 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             filter_cases,
             cases=[
                 [("debug", [True])],
-                # [("module", ["TTS DM Module"])],
+                [("module", ["Speaker DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("level", ["warning", "error"])],
+                [("level", ["warning", "error", "exception", "critical"])],
             ],
             # cases=[
             #     [("module", ["DialogueManager Module"])],
@@ -104,7 +106,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     ]
     # configurate logger
     # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters_terminal=filters, filters_file=[])
 
     # configure plot
     configurate_plot(
