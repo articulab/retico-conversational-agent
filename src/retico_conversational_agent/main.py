@@ -102,19 +102,19 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     # terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters=filters)
     terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
 
-    terminal_logger.info("test")
-    file_logger.info("test")
-    terminal_logger.debug("test")
-    file_logger.debug("test")
-    terminal_logger.warning("test")
-    file_logger.warning("test")
-    terminal_logger.error("test")
-    file_logger.error("test")
-    try:
-        raise Exception("test")
-    except Exception:
-        terminal_logger.exception("test")
-        file_logger.exception("test")
+    # terminal_logger.info("test")
+    # file_logger.info("test")
+    # terminal_logger.debug("test")
+    # file_logger.debug("test")
+    # terminal_logger.warning("test")
+    # file_logger.warning("test")
+    # terminal_logger.error("test")
+    # file_logger.error("test")
+    # try:
+    #     raise Exception("test")
+    # except Exception:
+    #     terminal_logger.exception("test")
+    #     file_logger.exception("test")
 
     # configure plot
     # configurate_plot(

@@ -101,15 +101,16 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
         )
     ]
     # configurate logger
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    terminal_logger, _ = retico_core.log_utils.configurate_logger()
 
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
+    # # configure plot
+    # configurate_plot(
+    #     is_plot_live=plot_live,
+    #     refreshing_time=1,
+    #     plot_config_path=plot_config_path,
+    #     window_duration=30,
+    # )
 
     if dh:
         dialogue_history = agent.DialogueHistory(
@@ -269,15 +270,16 @@ def main_DM_remote_computing_local(wozmic: bool):
         )
     ]
     # configurate logger
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters=filters)
+    terminal_logger, _ = retico_core.log_utils.configurate_logger()
 
-    # configure plot
-    configurate_plot(
-        is_plot_live=plot_live,
-        refreshing_time=1,
-        plot_config_path=plot_config_path,
-        window_duration=30,
-    )
+    # # configure plot
+    # configurate_plot(
+    #     is_plot_live=plot_live,
+    #     refreshing_time=1,
+    #     plot_config_path=plot_config_path,
+    #     window_duration=30,
+    # )
 
     # create modules
     if wozmic:
