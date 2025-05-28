@@ -1,6 +1,7 @@
 import os
 import wave
 
+from faster_whisper import WhisperModel
 import torch
 from TTS.api import TTS
 import numpy as np
@@ -49,7 +50,40 @@ def synthesize(text, is_multilingual, model, language, speaker_id=None, speaker_
     # return waveform, outputs
 
 
-def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
+def recognize(model, audio_data, samplerate=24000, whisper_samplerate=16000):
+    """Recreate the audio signal received by the microphone by
+    concatenating the audio chunks from the audio_buffer and transcribe
+    this concatenation into a list of predicted words.
+
+    Returns:
+        (list[string], boolean): the list of transcribed words.
+    """
+    # faster whisper
+    # audio_data = retico_core.audio.convert_audio_PCM16_to_float32(raw_audio=audio_data)
+    transcript = model.transcribe(audio_data, word_timestamps=True)  # the segments can be streamed
+    # print("res", res)
+    segments, infos = transcript
+    # segments = list(segments)
+    # print("infos", infos)
+    for segment in segments:
+        # print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+        # print("keys", segment.keys())
+        # print("words", segment.words)
+        if segment.words:
+            for word in segment.words:
+                # print(f"  Word: '{word.word}' at {word.start:.2f}s - {word.end:.2f}s")
+                print(
+                    f"  Word: '{word.word}' at {word.start*whisper_samplerate/samplerate:.2f}s - {word.end*whisper_samplerate/samplerate:.2f}s"
+                )
+    # for i in range(len(segments)):
+    #     print(f"segment {i} text: {segments[i].text}")
+    #     print(f"timestamp {i} start: {segments[i].start}, end: {segments[i].end}")
+    # transcription = "".join([s.text for s in segments])
+
+    return None
+
+
+def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, asr):
     current_text = text
     words = current_text.split(" ")
     outputs = synthesize(current_text, is_multilingual, model, language, speaker_id=speaker_id)
@@ -70,21 +104,30 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
         if x == space_token or i == len(tokens) - 1:
             audio_words_ends.append(i + 1)
     audio_data = outputs[0]["wav"]
-    words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
-    words_durations_in_nb_frames = outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
+    # words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
+    # words_durations_in_nb_frames = outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
 
     words_durations_in_nb_frames2, words_durations_in_sec2, alignments = alignment_xtts.get_words_durations(
         outputs[0]["alignment_required_data"]
     )
 
-    assert (words_durations_in_nb_frames2 == words_durations_in_nb_frames).all()
+    # print("words_durations_in_nb_frames2", words_durations_in_nb_frames2)
+    print("words_timestamps", np.round(np.cumsum(words_durations_in_sec2), 2))
+
+    recognize(asr, audio_data)
+
+    # assert (words_durations_in_nb_frames2 == words_durations_in_nb_frames).all()
 
     # if isinstance(raw_audio, str):
     #     audio_data = eval(raw_audio)
     # else:
     #     audio_data = raw_audio
 
-    print("len audio_data", len(audio_data))
+    # print("len audio_data", len(audio_data))
+    # print("samplerate", samplerate)
+    # print("duration audio", len(audio_data) / samplerate)
+    # print("duration audio", len(audio_data) / 22050)
+    # print("duration audio", len(audio_data) / 16000)
     # with open("audios_tts/audio.wav", "wb") as f:
     #     f.write(wav_data)
 
@@ -107,10 +150,10 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
     #     with open(f"audios_tts/audio_chunk_{i}.wav", "wb") as f:
     #         f.write(audio_chunk)
     #     previous_duration += words_duration
-    for i, duration_len in enumerate(words_durations_in_nb_frames):
+    for i, duration_len in enumerate(words_durations_in_nb_frames2):
         start = int(previous_duration)
         end = int(previous_duration + duration_len)
-        print("start", start, "end", end)
+        # print("start", start, "end", end)
         audio_chunk = audio_data[start:end]
         audio_chunk_wav = retico_core.audio.convert_audio_float32_to_WAVPCM16(
             raw_audio=audio_chunk, samplerate=samplerate
@@ -179,7 +222,7 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
     #     # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
     #     words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
     #     old_len_w = s_id
-    words_last_frame = np.cumsum(words_durations_in_nb_frames).tolist()
+    words_last_frame = np.cumsum(words_durations_in_nb_frames2).tolist()
 
     print("current_text", current_text)
     print("words", words)
@@ -199,8 +242,8 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate):
         # grounded_iu = clause_ius[word_id]
         grounded_word = words[word_id]
         char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
-        print("word_id", word_id, "char_id", char_id)
-        print("grounded_word", grounded_word, "sentence_stop", current_text[: char_id + 1])
+        # print("word_id", word_id, "char_id", char_id)
+        # print("grounded_word", grounded_word, "sentence_stop", current_text[: char_id + 1])
         # iu = self.create_iu(
         #     grounded_in=grounded_iu,
         #     raw_audio=chunk,
@@ -229,8 +272,10 @@ samplerate = 24000
 
 # text = "Hello, how are you?"
 # text = "How are you doing this sunny morning? Are you good?"
-text = "How are you doing this sunny morning, Are you good ? is it -like the other day- a sunny day? It's looking like it !"
+# text = "Hello. How are you doing this sunny morning, Are you good ? is it -like the other day- a sunny day? It's looking like it !"
 text = "Change will not come if we wait for some other person or some other time."
+
+asr = WhisperModel("distil-large-v2", device=device, compute_type="int8")
 
 execute_tts(
     text=text,
@@ -239,4 +284,5 @@ execute_tts(
     language=language,
     speaker_id=speaker_id,
     samplerate=samplerate,
+    asr=asr,
 )
