@@ -58,29 +58,24 @@ def recognize(model, audio_data, samplerate=24000, whisper_samplerate=16000):
     Returns:
         (list[string], boolean): the list of transcribed words.
     """
-    # faster whisper
-    # audio_data = retico_core.audio.convert_audio_PCM16_to_float32(raw_audio=audio_data)
-    transcript = model.transcribe(audio_data, word_timestamps=True)  # the segments can be streamed
-    # print("res", res)
+    transcript = model.transcribe(audio_data, word_timestamps=True)
     segments, infos = transcript
-    # segments = list(segments)
-    # print("infos", infos)
+    words = []
     for segment in segments:
-        # print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
-        # print("keys", segment.keys())
-        # print("words", segment.words)
         if segment.words:
             for word in segment.words:
-                # print(f"  Word: '{word.word}' at {word.start:.2f}s - {word.end:.2f}s")
                 print(
                     f"  Word: '{word.word}' at {word.start*whisper_samplerate/samplerate:.2f}s - {word.end*whisper_samplerate/samplerate:.2f}s"
                 )
-    # for i in range(len(segments)):
-    #     print(f"segment {i} text: {segments[i].text}")
-    #     print(f"timestamp {i} start: {segments[i].start}, end: {segments[i].end}")
-    # transcription = "".join([s.text for s in segments])
+                words.append(
+                    [
+                        word.word,
+                        word.start * whisper_samplerate / samplerate,
+                        word.end * whisper_samplerate / samplerate,
+                    ]
+                )
 
-    return None
+    return words
 
 
 def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, asr):
@@ -107,14 +102,15 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, 
     # words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
     # words_durations_in_nb_frames = outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
 
-    words_durations_in_nb_frames2, words_durations_in_sec2, alignments = alignment_xtts.get_words_durations(
+    words_durations_in_nb_frames, words_durations_in_sec, alignments = alignment_xtts.get_words_durations(
         outputs[0]["alignment_required_data"]
     )
 
-    # print("words_durations_in_nb_frames2", words_durations_in_nb_frames2)
-    print("words_timestamps", np.round(np.cumsum(words_durations_in_sec2), 2))
+    # print("words_durations_in_nb_frames", words_durations_in_nb_frames)
+    print("words_timestamps", np.round(np.cumsum(words_durations_in_sec), 2))
 
-    recognize(asr, audio_data)
+    asr_timestamps = recognize(asr, audio_data)
+    assert len(asr_timestamps) == len(words_durations_in_sec)
 
     # assert (words_durations_in_nb_frames2 == words_durations_in_nb_frames).all()
 
@@ -150,7 +146,7 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, 
     #     with open(f"audios_tts/audio_chunk_{i}.wav", "wb") as f:
     #         f.write(audio_chunk)
     #     previous_duration += words_duration
-    for i, duration_len in enumerate(words_durations_in_nb_frames2):
+    for i, duration_len in enumerate(words_durations_in_nb_frames):
         start = int(previous_duration)
         end = int(previous_duration + duration_len)
         # print("start", start, "end", end)
@@ -222,7 +218,7 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, 
     #     # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
     #     words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
     #     old_len_w = s_id
-    words_last_frame = np.cumsum(words_durations_in_nb_frames2).tolist()
+    words_last_frame = np.cumsum(words_durations_in_nb_frames).tolist()
 
     print("current_text", current_text)
     print("words", words)

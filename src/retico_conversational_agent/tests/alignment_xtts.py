@@ -179,6 +179,19 @@ def get_avg_attention_score_per_audio_token(attentions, num_text_tokens, start_t
     return np.array(avg_scores_per_audio_token)
 
 
+def word_align(alignments, words_ids):
+    # Replace alignments to have only increasing words_ids in alignments
+    for i in range(len(alignments) - 1):
+        if alignments[i + 1] < alignments[i]:
+            alignments[i + 1] = alignments[i]
+
+    # Count words durations in number of associated audio tokens
+    words_durations_in_nb_audio_token = np.zeros(words_ids.shape[0])
+    for idx in alignments:
+        words_durations_in_nb_audio_token[idx] += 1
+    return words_durations_in_nb_audio_token
+
+
 def extract_alignment(
     attentions,
     num_text_tokens,
@@ -201,6 +214,7 @@ def extract_alignment(
             alignments.append(
                 np.argmax([np.max(avg_scores[words_ids[i][0] : words_ids[i][1]]) for i in range(len(words_ids))])
             )
+            alignments = word_align(alignments, words_ids)
         # take id of word that has the max mean over text tokens
         elif alignment_method == "mean_per_word":
             mean_att_per_word = [np.mean(avg_scores[words_ids[i][0] : words_ids[i][1]]) for i in range(len(words_ids))]
@@ -363,3 +377,49 @@ def get_words_durations(alignment_required_data):
         words_durations_in_sec_list.extend(words_durations_in_sec)
         alignements_list.extend(alignments)
     return words_durations_in_nb_frames_list, words_durations_in_sec_list, alignements_list
+
+
+def test_different_alignment_and_wordsplit(alignment_required_data):
+    """
+    Get the words durations from the alignment required data.
+
+    Args:
+        alignment_required_data (dict): The alignment required data.
+
+    Returns:
+        tuple: The words durations, the durations length, and the alignment.
+    """
+    # Extract the relevant data from the dictionary
+    att_attentions = alignment_required_data["att_attentions"]
+    gpt_cond_latent_shape = alignment_required_data["gpt_cond_latent_shape"]
+    text_tokens = alignment_required_data["text_tokens"]
+    # language = alignment_required_data["language"]
+    detokenized_text_tokens = alignment_required_data["detokenized_text_tokens"]
+
+    if len(att_attentions) > 1:
+        print("more than one sentence, returning empty lists")
+    else:
+        words_durations_seconds_dict = {}
+        start_text_token = gpt_cond_latent_shape[1] + 1
+        end_text_token = gpt_cond_latent_shape[1] + 1 + len(text_tokens)
+        for word_splitting_method in ["space", "space_end", "exclude_space"]:
+            words_ids = word_split(text_tokens, split_method=word_splitting_method)
+            for alignment_method in [
+                "mean_per_word",
+                "argmax_word_id_text_token",
+                "argmax_text_token",
+            ]:
+                # Extract alignments
+                alignments = extract_alignment(
+                    att_attentions[0],
+                    len(text_tokens[0]),
+                    start_text_token,
+                    end_text_token,
+                    words_ids,
+                    alignment_method=alignment_method,
+                )
+
+                time_per_token = 1024 / 22050  # 0.04644 seconds
+                words_durations_in_sec = words_durations_in_nb_audio_token * time_per_token
+                words_durations_seconds_dict[word_splitting_method][alignment_method] = words_durations_in_sec
+    return words_durations_seconds_dict
