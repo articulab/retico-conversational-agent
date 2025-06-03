@@ -1,0 +1,92 @@
+{
+    "space": {
+        "mean_per_word": {
+            "mae": 0.3117618061717442,
+            "rmse": 0.44150207357487486
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.3117618061717442,
+            "rmse": 0.44150207357487486
+        }
+    },
+    "space_end": {
+        "mean_per_word": {
+            "mae": 0.32839593808537837,
+            "rmse": 0.5149689110974479
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.32839593808537837,
+            "rmse": 0.5149689110974479
+        }
+    },
+    "exclude_space": {
+        "mean_per_word": {
+            "mae": 0.510637878339742,
+            "rmse": 0.8032676513090949
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.510637878339742,
+            "rmse": 0.8032676513090949
+        }
+    },
+    "space_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.18055802030957316,
+            "rmse": 0.23764200407439245
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.18055802030957316,
+            "rmse": 0.23764200407439245
+        }
+    },
+    "space_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.1572355318939167,
+            "rmse": 0.17007124726650205
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1572355318939167,
+            "rmse": 0.17007124726650205
+        }
+    },
+    "space_end_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.1773163758256926,
+            "rmse": 0.27648860863581126
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1773163758256926,
+            "rmse": 0.27648860863581126
+        }
+    },
+    "space_end_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.1773163758256926,
+            "rmse": 0.27648860863581126
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1773163758256926,
+            "rmse": 0.27648860863581126
+        }
+    },
+    "exclude_space_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.32822241940254376,
+            "rmse": 0.5009627507520154
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.32822241940254376,
+            "rmse": 0.5009627507520154
+        }
+    },
+    "exclude_space_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.1280607315389924,
+            "rmse": 0.14130787359531036
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1280607315389924,
+            "rmse": 0.14130787359531036
+        }
+    }
+}

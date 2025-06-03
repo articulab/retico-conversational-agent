@@ -41,7 +41,9 @@ from .additional_IUs import (
     TextAlignedAudioIU,
     DMIU,
 )
-from .alignment_xtts import get_words_durations
+
+# from .alignment_xtts import get_words_durations, get_words_durations_from_xtts_output
+import alignment_xtts
 from rich.console import Console
 
 
@@ -557,16 +559,10 @@ class TtsDmModule(retico_core.AbstractModule):
                     words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
                     old_len_w = s_id
             if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
-                try:
-                    words_durations_in_sec = outputs[0]["outputs"]["words_durations_in_sec"].squeeze().tolist()
-                    words_durations_in_nb_frames = (
-                        outputs[0]["outputs"]["words_durations_in_nb_frames"].squeeze().tolist()
-                    )
-                except Exception:
-                    alignment_required_data = outputs[0]["alignment_required_data"]
-                    words_durations_in_nb_frames, words_durations_in_sec, alignments = get_words_durations(
-                        alignment_required_data
-                    )
+                alignment_required_data = outputs[0]["alignment_required_data"]
+                words_durations_in_nb_frames, words_durations_in_sec, alignments = (
+                    alignment_xtts.get_words_durations_from_xtts_output(alignment_required_data)
+                )
                 words_duration = words_durations_in_nb_frames
         except Exception as e:
             console = Console()
