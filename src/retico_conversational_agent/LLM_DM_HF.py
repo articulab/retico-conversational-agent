@@ -541,7 +541,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
             agent_sentence, agent_sentence_nb_tokens = self.generate_next_sentence(prompt_tokens)
 
         um = retico_core.UpdateMessage()
-        print("self.which_stop_criteria =", self.which_stop_criteria)
+        # print("self.which_stop_criteria =", self.which_stop_criteria)
         if self.which_stop_criteria == "interruption":
             self.terminal_logger.debug("interruption", debug=True)
             # REVOKE every word in interrupted clause (every IU in current_output)

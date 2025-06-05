@@ -590,8 +590,6 @@ class TtsDmModule(retico_core.AbstractModule):
             word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + self.chunk_size])
             word_id = min(word_id, len(words) - 1)
             grounded_iu = incremental_chunk_ius[word_id]
-            char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
-            grounded_iu = clause_ius[word_id]
             char_id = len(" ".join([word for word in words[: word_id + 1]]))
             iu = self.create_iu(
                 grounded_in=grounded_iu,

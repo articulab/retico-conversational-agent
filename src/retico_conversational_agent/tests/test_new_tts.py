@@ -114,7 +114,6 @@ def evaluate_alignments(
     outputs = synthesize(current_text, is_multilingual, model, language, speaker_id=speaker_id)
 
     assert len(outputs) == 1  # only one clause, one sentence
-    print("outputs keys = ", outputs[0].keys())
 
     if is_multilingual:
         tokens = model.synthesizer.tts_model.tokenizer.encode(current_text, lang=language + "-")
@@ -219,7 +218,6 @@ def execute_tts(text, model, is_multilingual, language, speaker_id, samplerate, 
     outputs = synthesize(current_text, is_multilingual, model, language, speaker_id=speaker_id)
 
     assert len(outputs) == 1  # only one clause, one sentence
-    print("outputs keys = ", outputs[0].keys())
 
     if is_multilingual:
         tokens = model.synthesizer.tts_model.tokenizer.encode(current_text, lang=language + "-")

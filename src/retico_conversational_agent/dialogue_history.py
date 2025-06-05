@@ -230,13 +230,11 @@ class DialogueHistory:
         prompt = self.get_prompt(self.cpt_0)
         prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
         nb_tokens = len(prompt_tokens)
-        print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         while nb_tokens > self.context_size:
             self.cpt_0 += 1
             prompt = self.get_prompt(self.cpt_0)
             prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
             nb_tokens = len(prompt_tokens)
-            print("nb_tokens : ", nb_tokens, " context_size : ", self.context_size)
         return prompt, prompt_tokens
 
     def interruption_alignment_new_agent_sentence(self, utterance, punctuation_ids, interrupted_speaker_iu):
@@ -317,7 +315,6 @@ class DialogueHistory:
         """
         if end is None:
             end = len(self.dialogue_history)
-        print("start : ", start, " end : ", end)
         assert start > 0
         assert end >= start
         if system_prompt is not None:
