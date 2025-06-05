@@ -62,10 +62,16 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     tts_frame_length = 0.2
     # tts_frame_length = 0.02
     rate = 16000
-    # tts_model_samplerate = 22050
+
     # tts_model = "vits_vctk"
-    tts_model_samplerate = 48000
-    tts_model = "jenny"
+    # tts_model = "jenny"
+    # tts_model_samplerate = 48000
+
+    tts_model = "xtts"
+    tts_model_samplerate = 24000
+
+    # tts_speaker_id = "Gitta Nikolina"
+    tts_speaker_id = "Uta Obando"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
         The teacher is teaching mathemathics to the child student.\
         As the student is a child, the teacher needs to stay gentle all the time. Please provide the next valid response for the followig conversation.\
@@ -92,6 +98,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
                 [("level", ["debug", "warning", "error"])],
+                [("level", ["warning", "error", "exception", "critical"])],
             ],
             # cases=[
             #     [("module", ["DialogueManager Module"])],
@@ -100,8 +107,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters_terminal=filters)
-    # terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
+    terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
 
     # configure plot
     # configurate_plot(
@@ -181,8 +187,9 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
 
     tts = agent.TtsDmModule(
         language="en",
-        model=tts_model,
-        printing=printing,
+        model_name=tts_model,
+        speaker_id=tts_speaker_id,
+        verbose=printing,
         frame_duration=tts_frame_length,
         device=device,
         incrementality_level=incrementality_level,

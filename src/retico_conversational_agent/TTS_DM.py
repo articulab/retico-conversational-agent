@@ -42,6 +42,9 @@ from .additional_IUs import (
     DMIU,
 )
 
+import alignment_xtts
+from rich.console import Console
+
 
 class TtsDmModule(retico_core.AbstractModule):
     """A retico module that provides Text-To-Speech (TTS), aligns its inputs
@@ -88,24 +91,22 @@ class TtsDmModule(retico_core.AbstractModule):
         return TextAlignedAudioIU
 
     LANGUAGE_MAPPING = {
-        "en": {
-            "jenny": "tts_models/en/jenny/jenny",
-            "vits": "tts_models/en/ljspeech/vits",
-            "vits_neon": "tts_models/en/ljspeech/vits--neon",
-            # "fast_pitch": "tts_models/en/ljspeech/fast_pitch", # bug sometimes
-        },
-        "multi": {
-            "xtts_v2": "tts_models/multilingual/multi-dataset/xtts_v2",  # bugs
-            "your_tts": "tts_models/multilingual/multi-dataset/your_tts",
-            "vits_vctk": "tts_models/en/vctk/vits",
-        },
+        "xtts": "tts_models/multilingual/multi-dataset/xtts_v2",
+        "your_tts": "tts_models/multilingual/multi-dataset/your_tts",
+        "jenny": "tts_models/en/jenny/jenny",
+        "vits": "tts_models/en/ljspeech/vits",
+        "vits_neon": "tts_models/en/ljspeech/vits--neon",
+        # "fast_pitch": "tts_models/en/ljspeech/fast_pitch", # bug sometimes
+        "vits_vctk": "tts_models/en/vctk/vits",
     }
 
     def __init__(
         self,
-        model="jenny",
+        # model_name="xtts",
+        model_name="jenny",
         language="en",
-        speaker_wav="TTS/wav_files/tts_api/tts_models_en_jenny_jenny/long_2.wav",
+        speaker_id="Uta Obando",
+        speaker_wav=None,
         frame_duration=0.2,
         verbose=False,
         device=None,
@@ -131,25 +132,19 @@ class TtsDmModule(retico_core.AbstractModule):
         super().__init__(**kwargs)
 
         # model
-        if language not in self.LANGUAGE_MAPPING:
-            print("Unknown TTS language. Defaulting to English (en).")
-            language = "en"
-
-        if model not in self.LANGUAGE_MAPPING[language].keys():
-            print(
-                "Unknown model for the following TTS language : "
-                + language
-                + ". Defaulting to "
-                + next(iter(self.LANGUAGE_MAPPING[language]))
-            )
-            model = next(iter(self.LANGUAGE_MAPPING[language]))
+        if model_name not in self.LANGUAGE_MAPPING:
+            model_name = next(iter(self.LANGUAGE_MAPPING))
+            print("Unknown TTS model : Defaulting to : ", model_name)
 
         self.model = None
-        self.model_name = self.LANGUAGE_MAPPING[language][model]
-        self.device = device_definition(device)
+        self.model_name = self.LANGUAGE_MAPPING[model_name]
+        print("model_name = ", self.model_name)
         self.language = language
+        self.device = device_definition(device)
         self.speaker_wav = speaker_wav
-        self.is_multilingual = language == "multi"
+        self.speaker_id = speaker_id
+        self.is_multilingual = "multilingual" in self.model_name
+        print(f"is_multilingual = {'multilingual' in self.model_name}", self.is_multilingual)
 
         # audio
         self.frame_duration = frame_duration
@@ -193,24 +188,23 @@ class TtsDmModule(retico_core.AbstractModule):
             bytes: The speech as a 22050 Hz int16-encoded numpy ndarray.
         """
 
-        final_outputs = self.model.tts(
-            text=text,
-            return_extra_outputs=True,
-            split_sentences=False,
-            verbose=self.verbose,
-        )
-
-        # if self.is_multilingual:
-        #     # if "multilingual" in file or "vctk" in file:
-        #     final_outputs = self.model.tts(
-        #         text=text,
-        #         language=self.language,
-        #         speaker="p225",
-        #         speaker_wav=self.speaker_wav,
-        #         # speaker="Ana Florence",
-        #     )
-        # else:
-        #     final_outputs = self.model.tts(text=text, speed=1.0)
+        if self.is_multilingual:
+            final_outputs = self.model.tts(
+                text=text,
+                language=self.language,
+                speaker=self.speaker_id,
+                speaker_wav=None if self.speaker_id is None else self.speaker_wav,
+                return_extra_outputs=True,
+                split_sentences=False,
+                verbose=self.verbose,
+            )
+        else:
+            final_outputs = self.model.tts(
+                text=text,
+                return_extra_outputs=True,
+                split_sentences=False,
+                verbose=self.verbose,
+            )
 
         if len(final_outputs) != 2:
             raise NotImplementedError("coqui TTS should output both wavforms and outputs")
@@ -542,39 +536,54 @@ class TtsDmModule(retico_core.AbstractModule):
         # Synthesize audio from text
         self.file_logger.debug("before_synthesize")
         new_audio, outputs = self.synthesize(current_text)
-        self.file_logger.debug("after_synthesize")
-        tokens = self.model.synthesizer.tts_model.tokenizer.text_to_ids(current_text)
-        self.file_logger.debug("after_alignement")
-
-        audio_words_ends = []
-        for i, x in enumerate(tokens):
-            if x == self.space_token or i == len(tokens) - 1:
-                audio_words_ends.append(i + 1)
-        audio_data = outputs[0]["wav"]
-        durations = outputs[0]["outputs"]["durations"].squeeze().tolist()
-        len_wav = len(audio_data)
-        total_duration = int(sum(durations))
-        nb_fram_per_dur = len_wav / total_duration
-        new_buffer = []
-
-        # Check that input words matches synthesized audio
-        assert len(audio_words_ends) == len(words)
+        self.file_logger.info("after_synthesize")
         assert len(outputs) == 1  # only one clause, one sentence
-        assert len(durations) == len(tokens)
+        print("outputs keys = ", outputs[0].keys())
+        if self.is_multilingual:
+            tokens = self.model.synthesizer.tts_model.tokenizer.encode(current_text, lang=self.language + "-")
+            # tokens = self.model.synthesizer.tts_model.tokenizer.tokenizer.text_to_ids(current_text)
+        else:
+            tokens = self.model.synthesizer.tts_model.tokenizer.text_to_ids(current_text)
+        self.file_logger.info("after_alignement")
 
-        # calculate audio duration per word
-        words_duration = []
-        old_len_w = 0
-        for s_id in audio_words_ends:
-            # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
-            words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
-            old_len_w = s_id
+        audio_data = outputs[0]["wav"]
+        len_wav = len(audio_data)
+        self.terminal_logger.debug("wav", len_wav=len_wav, type=type(audio_data), start=audio_data[:30])
+
+        try:
+            if self.model_name == "tts_models/en/jenny/jenny":
+                durations = outputs[0]["outputs"]["durations"].squeeze().tolist()
+                total_duration = int(sum(durations))
+                nb_fram_per_dur = len_wav / total_duration
+                audio_words_ends = []
+                for i, x in enumerate(tokens):
+                    if x == self.space_token or i == len(tokens) - 1:
+                        audio_words_ends.append(i + 1)
+                # calculate audio duration per word
+                words_duration = []
+                old_len_w = 0
+                for s_id in audio_words_ends:
+                    # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
+                    words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
+                    old_len_w = s_id
+            if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
+                alignment_required_data = outputs[0]["alignment_required_data"]
+                words_durations_in_nb_frames, words_durations_in_sec, alignments = (
+                    alignment_xtts.get_words_durations_from_xtts_output(alignment_required_data)
+                )
+                words_duration = words_durations_in_nb_frames
+        except Exception as e:
+            log_exception(module=self, exception=e)
+
+        self.terminal_logger.debug("words_duration", words_duration)
+        # # Check that input words matches synthesized audio
+        assert len(words_duration) == len(words)
         words_last_frame = np.cumsum(words_duration).tolist()
-
+        new_buffer = []
         # Split the audio into same-size chunks
         for chunk_start in range(0, len(audio_data), self.chunk_size):
             chunk_wav = audio_data[chunk_start : chunk_start + self.chunk_size]
-            chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
+            chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=chunk_wav)
             if len(chunk) < self.chunk_size_bytes:
                 chunk = chunk + b"\x00" * (self.chunk_size_bytes - len(chunk))
             # Calculates last word that started during the audio chunk
@@ -582,6 +591,8 @@ class TtsDmModule(retico_core.AbstractModule):
             word_id = min(word_id, len(words) - 1)
             grounded_iu = incremental_chunk_ius[word_id]
             char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
+            grounded_iu = clause_ius[word_id]
+            char_id = len(" ".join([word for word in words[: word_id + 1]]))
             iu = self.create_iu(
                 grounded_in=grounded_iu,
                 raw_audio=chunk,
@@ -595,28 +606,6 @@ class TtsDmModule(retico_core.AbstractModule):
                 clause_id=grounded_iu.clause_id,
             )
             new_buffer.append(iu)
-
-            # split audio in chunks corresponding to each word
-            # chunk_start = 0
-            # for word_id, chunk_end in enumerate(words_last_frame):
-            #     chunk_wav = audio_data[chunk_start:chunk_end]
-            #     chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
-            #     chunk_start = chunk_end
-            #     grounded_iu = clause_ius[word_id]
-            #     char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
-            #     iu = self.create_iu(
-            #         grounded_in=grounded_iu,
-            #         raw_audio=chunk,
-            #         chunk_size=self.chunk_size,
-            #         rate=self.samplerate,
-            #         sample_width=self.samplewidth,
-            #         grounded_word=words[word_id],
-            #         word_id=int(word_id),
-            #         char_id=char_id,
-            #         turn_id=grounded_iu.turn_id,
-            #         clause_id=grounded_iu.clause_id,
-            #     )
-            #     new_buffer.append(iu)
         return new_buffer
 
     # def _tts_thread(self):
@@ -651,10 +640,16 @@ class TtsDmModule(retico_core.AbstractModule):
     def setup(self):
         super().setup()
         self.model = TTS(self.model_name).to(self.device)
-        self.samplerate = self.model.synthesizer.tts_config.get("audio")["sample_rate"]
+        if "xtts" in self.model_name:
+            self.samplerate = 24000
+        else:
+            self.samplerate = self.model.synthesizer.tts_config.get("audio")["sample_rate"]
         self.chunk_size = int(self.samplerate * self.frame_duration)
         self.chunk_size_bytes = self.chunk_size * self.samplewidth
-        self.space_token = self.model.synthesizer.tts_model.tokenizer.encode(" ")[0]
+        if self.is_multilingual:
+            self.space_token = self.model.synthesizer.tts_model.tokenizer.encode(" ", lang=self.language + "-")[0]
+        else:
+            self.space_token = self.model.synthesizer.tts_model.tokenizer.encode(" ")[0]
 
     def prepare_run(self):
         super().prepare_run()

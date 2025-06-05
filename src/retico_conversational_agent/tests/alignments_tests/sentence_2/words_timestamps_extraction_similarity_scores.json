@@ -1,0 +1,92 @@
+{
+    "space": {
+        "mean_per_word": {
+            "mae": 0.1679365079365079,
+            "rmse": 0.1943751749843645
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1679365079365079,
+            "rmse": 0.1943751749843645
+        }
+    },
+    "space_end": {
+        "mean_per_word": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        }
+    },
+    "exclude_space": {
+        "mean_per_word": {
+            "mae": 0.2492063492063492,
+            "rmse": 0.3328549336685712
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.2492063492063492,
+            "rmse": 0.3328549336685712
+        }
+    },
+    "space_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.1679365079365079,
+            "rmse": 0.1943751749843645
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.1679365079365079,
+            "rmse": 0.1943751749843645
+        }
+    },
+    "space_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.22134240362811802,
+            "rmse": 0.30029745761043336
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.22134240362811802,
+            "rmse": 0.30029745761043336
+        }
+    },
+    "space_end_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        }
+    },
+    "space_end_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.21902040816326526,
+            "rmse": 0.3062888846285026
+        }
+    },
+    "exclude_space_remove_punctuation_only_words": {
+        "mean_per_word": {
+            "mae": 0.2492063492063492,
+            "rmse": 0.3328549336685712
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.2492063492063492,
+            "rmse": 0.3328549336685712
+        }
+    },
+    "exclude_space_remove_punctuation": {
+        "mean_per_word": {
+            "mae": 0.2166984126984127,
+            "rmse": 0.3090394109840259
+        },
+        "argmax_word_id_text_token": {
+            "mae": 0.2166984126984127,
+            "rmse": 0.3090394109840259
+        }
+    }
+}
