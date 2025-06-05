@@ -105,8 +105,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
-    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters_terminal=filters, filters_file=[])
+    terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder)
+    # terminal_logger, _ = retico_core.log_utils.configurate_logger(log_folder, filters_terminal=filters, filters_file=[])
 
     # configure plot
     configurate_plot(

@@ -105,7 +105,7 @@ class TtsDmModule(retico_core.AbstractModule):
         # model_name="xtts",
         model_name="jenny",
         language="en",
-        speaker_id="Gitta Nikolina",
+        speaker_id="Uta Obando",
         speaker_wav=None,
         frame_duration=0.2,
         verbose=False,

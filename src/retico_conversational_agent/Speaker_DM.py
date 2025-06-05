@@ -253,7 +253,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
             data = bytes(iu.raw_audio)
             return (data, pyaudio.paContinue)
         if len(self.audio_iu_buffer) == 0:
-            self.terminal_logger.info("output_silence")
+            # self.terminal_logger.info("output_silence")
             self.file_logger.info("output_silence")
             silence_bytes = b"\x00" * frame_count * self.channels * self.sample_width
             return (silence_bytes, pyaudio.paContinue)
@@ -261,7 +261,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
         iu = self.audio_iu_buffer.pop(0)
         # if it is the last IU from TTS for this agent turn, which corresponds to an agent EOT.
         if hasattr(iu, "final") and iu.final:
-            self.terminal_logger.info("agent_EOT", debug=True)
+            # self.terminal_logger.info("agent_EOT", debug=True)
             self.file_logger.info("EOT")
             output_iu = self.create_iu(
                 grounded_word=iu.grounded_word,
@@ -287,7 +287,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                 and iu.turn_id is not None
                 and self.latest_processed_iu.turn_id != iu.turn_id
             ):
-                self.terminal_logger.info("agent_BOT")
+                # self.terminal_logger.info("agent_BOT")
                 self.file_logger.info("agent_BOT")
                 output_iu = self.create_iu(
                     grounded_word=iu.grounded_word,
@@ -302,17 +302,8 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                 self.append(um)
 
             data = bytes(iu.raw_audio)
-            self.terminal_logger.debug(
-                "audio_data_callback",
-                len_data=len(iu.raw_audio),
-                nframes=iu.nframes,
-                sample_width=iu.sample_width,
-                rate=iu.rate,
-                data_b=data[:20],
-                data=iu.raw_audio[:20],
-            )
 
-            self.terminal_logger.info("output_audio", debug=True)
+            # self.terminal_logger.info("output_audio", debug=True)
             self.file_logger.info("output_audio")
 
             self.latest_processed_iu = iu
@@ -349,13 +340,6 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
 
         # Adding the stream_callback parameter should make the stream.write() function non blocking,
         # which would make it possible to run in parallel of the reception of update messages (and the uptdate of vad_state)
-        self.terminal_logger.info(
-            "start prepare_run",
-            frames_per_buffer=int(self.rate * self.frame_length),
-            rate=self.rate,
-            channels=self.channels,
-            format=p.get_format_from_width(self.sample_width),
-        )
         self.stream = p.open(
             format=p.get_format_from_width(self.sample_width),
             channels=self.channels,
