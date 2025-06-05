@@ -342,7 +342,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = TTS(model_name).to(device)
     samplerate = 24000
-    folder_save_audio = "audios_tts/"
+    folder_save_audio = "audios_alignment/"
     asr_model = "distil-large-v2"
 
     # text = "Hello, how are you?"

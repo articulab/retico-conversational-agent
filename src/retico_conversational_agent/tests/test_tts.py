@@ -7,7 +7,7 @@ import soundfile as sf
 import torch
 
 #### COMMAND
-# tts --text "To have much learning and skill, to be well-trained in discipline, and good in speech — this is the highest blessing." --language_idx "en" --out_path "audio_tests/xtts.wav" --model_name "tts_models/multilingual/multi-dataset/xtts_v2"  --speaker_idx "Claribel Dervla"
+# tts --text "To have much learning and skill, to be well-trained in discipline, and good in speech — this is the highest blessing." --language_idx "en" --out_path "voices_different_tts/xtts.wav" --model_name "tts_models/multilingual/multi-dataset/xtts_v2"  --speaker_idx "Claribel Dervla"
 
 
 def append_raw_audio(raw_audio, rate, dir_path, file_path):
@@ -29,7 +29,7 @@ def append_raw_audio(raw_audio, rate, dir_path, file_path):
 
 def generate_voices_speakers(speaker_ids, model, text):
     for speaker_id in speaker_ids:
-        file_path = f"audio_tests/xtts/{speaker_id.replace(' ', '_')}.wav"
+        file_path = f"voices_different_tts/xtts/{speaker_id.replace(' ', '_')}.wav"
         model.tts_to_file(
             text=text,
             file_path=file_path,
@@ -57,7 +57,7 @@ def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_
     speaker_path = speaker_id.replace(" ", "_")
     for i, sentence in enumerate(sentences):
         # generate audio for the full sentence
-        file_path = f"audio_tests/xtts/{speaker_path}/splitted_sentences/sentence_{i}/full_sentence.wav"
+        file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/full_sentence.wav"
         folder_path = "/".join(file_path.split("/")[:-1])
         os.makedirs(folder_path, exist_ok=True)
         model.tts_to_file(
@@ -73,7 +73,7 @@ def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_
         # generate audio for the clauses
         clauses_paths = []
         for j, clause in enumerate(clauses):
-            file_path = f"audio_tests/xtts/{speaker_path}/splitted_sentences/sentence_{i}/clause_{j}.wav"
+            file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/clause_{j}.wav"
             folder_path = "/".join(file_path.split("/")[:-1])
             os.makedirs(folder_path, exist_ok=True)
             model.tts_to_file(
@@ -88,7 +88,7 @@ def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_
             # audio_bytes += audio
 
         # aggregate all clauses audio files into one
-        file_path = f"audio_tests/xtts/{speaker_path}/splitted_sentences/sentence_{i}/aggregated_clauses.wav"
+        file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/aggregated_clauses.wav"
         os.makedirs(folder_path, exist_ok=True)
         concatenate_audio_wave(clauses_paths, file_path)
         # with open(file_path, "wb") as f:
@@ -163,10 +163,10 @@ frame_duration = 0.2
 samplewidth = 2
 verbose = True
 text = "To have much learning and skill, to be well-trained in discipline, and good in speech — this is the highest blessing."
-folder_path = "audio_tests/xtts/"
+folder_path = "voices_different_tts/xtts/"
 model = TTS(model_name).to(device)
 samplerate = model.synthesizer.tts_config.get("audio")["sample_rate"]
-file_path = f"audio_tests/{model_name.split('/')[-1]}.wav"
+file_path = f"voices_different_tts/{model_name.split('/')[-1]}.wav"
 
 
 # speaker_id = "Gitta Nikolina"
