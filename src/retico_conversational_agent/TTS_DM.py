@@ -538,7 +538,6 @@ class TtsDmModule(retico_core.AbstractModule):
         new_audio, outputs = self.synthesize(current_text)
         self.file_logger.info("after_synthesize")
         assert len(outputs) == 1  # only one clause, one sentence
-        print("outputs keys = ", outputs[0].keys())
         if self.is_multilingual:
             tokens = self.model.synthesizer.tts_model.tokenizer.encode(current_text, lang=self.language + "-")
             # tokens = self.model.synthesizer.tts_model.tokenizer.tokenizer.text_to_ids(current_text)
