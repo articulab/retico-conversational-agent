@@ -64,12 +64,12 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     rate = 16000
 
     # tts_model = "vits_vctk"
-    # tts_model_samplerate = 48000
-    tts_model_samplerate = 24000
-    # tts_model_samplerate = 22050
-    # tts_model_samplerate = 12000
     # tts_model = "jenny"
+    # tts_model_samplerate = 48000
+
     tts_model = "xtts"
+    tts_model_samplerate = 24000
+
     # tts_speaker_id = "Gitta Nikolina"
     tts_speaker_id = "Uta Obando"
     system_prompt = "This is a spoken dialog scenario between a teacher and a 8 years old child student.\
@@ -89,8 +89,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         partial(
             filter_cases,
             cases=[
-                [("debug", [True])],
-                [("module", ["Speaker DM Module"])],
+                # [("debug", [True])],
+                # [("module", ["TTS DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),

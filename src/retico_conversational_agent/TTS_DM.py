@@ -42,7 +42,6 @@ from .additional_IUs import (
     DMIU,
 )
 
-# from .alignment_xtts import get_words_durations, get_words_durations_from_xtts_output
 import alignment_xtts
 from rich.console import Console
 
@@ -565,12 +564,7 @@ class TtsDmModule(retico_core.AbstractModule):
                 )
                 words_duration = words_durations_in_nb_frames
         except Exception as e:
-            console = Console()
-            console.print_exception(show_locals=False)
-            time.sleep(30)
-            # print(e)
-            print("\n\n\nLALALA")
-            assert False
+            log_exception(module=self, exception=e)
 
         self.terminal_logger.debug("words_duration", words_duration)
         # # Check that input words matches synthesized audio
@@ -580,14 +574,14 @@ class TtsDmModule(retico_core.AbstractModule):
         # Split the audio into same-size chunks
         for chunk_start in range(0, len(audio_data), self.chunk_size):
             chunk_wav = audio_data[chunk_start : chunk_start + self.chunk_size]
-            chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
+            chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=chunk_wav)
             if len(chunk) < self.chunk_size_bytes:
                 chunk = chunk + b"\x00" * (self.chunk_size_bytes - len(chunk))
             # Calculates last word that started during the audio chunk
             word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + self.chunk_size])
             word_id = min(word_id, len(words) - 1)
             grounded_iu = clause_ius[word_id]
-            char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
+            char_id = len(" ".join([word for word in words[: word_id + 1]]))
             iu = self.create_iu(
                 grounded_in=grounded_iu,
                 raw_audio=chunk,
@@ -601,28 +595,6 @@ class TtsDmModule(retico_core.AbstractModule):
                 clause_id=grounded_iu.clause_id,
             )
             new_buffer.append(iu)
-
-            # split audio in chunks corresponding to each word
-            # chunk_start = 0
-            # for word_id, chunk_end in enumerate(words_last_frame):
-            #     chunk_wav = audio_data[chunk_start:chunk_end]
-            #     chunk = (np.array(chunk_wav) * 32767).astype(np.int16).tobytes()
-            #     chunk_start = chunk_end
-            #     grounded_iu = clause_ius[word_id]
-            #     char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
-            #     iu = self.create_iu(
-            #         grounded_in=grounded_iu,
-            #         raw_audio=chunk,
-            #         chunk_size=self.chunk_size,
-            #         rate=self.samplerate,
-            #         sample_width=self.samplewidth,
-            #         grounded_word=words[word_id],
-            #         word_id=int(word_id),
-            #         char_id=char_id,
-            #         turn_id=grounded_iu.turn_id,
-            #         clause_id=grounded_iu.clause_id,
-            #     )
-            #     new_buffer.append(iu)
         return new_buffer
 
     # def _tts_thread(self):
