@@ -83,6 +83,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     dh_size = 1500
     # context_size = 500
     # dh_size = 300
+    incrementality_level = "clause"
 
     # filters
     filters = [
@@ -96,6 +97,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
+                [("level", ["debug", "warning", "error"])],
                 [("level", ["warning", "error", "exception", "critical"])],
             ],
             # cases=[
@@ -164,6 +166,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         printing=printing,
         device=device,
         verbose=True,
+        incrementality_level=incrementality_level,
     )
 
     dm = agent.DialogueManagerModule(
@@ -189,6 +192,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         verbose=printing,
         frame_duration=tts_frame_length,
         device=device,
+        incrementality_level=incrementality_level,
     )
 
     speaker = agent.SpeakerDmModule(

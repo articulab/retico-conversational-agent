@@ -110,6 +110,7 @@ class TtsDmModule(retico_core.AbstractModule):
         frame_duration=0.2,
         verbose=False,
         device=None,
+        incrementality_level="clause",  # turn, sentence, clause, word
         **kwargs,
     ):
         """Initializes the CoquiTTSInterruption Module.
@@ -160,7 +161,7 @@ class TtsDmModule(retico_core.AbstractModule):
         self.interrupted_turn = -1
         self.current_turn_id = -1
 
-        self.first_clause = True
+        self.first_incremental_chunk = True
         self.backchannel = None
         self.space_token = None
 
@@ -172,6 +173,9 @@ class TtsDmModule(retico_core.AbstractModule):
             "uh",
             "uh, okay",
         ]
+
+        # incrementality level
+        self.incrementality_level = incrementality_level
 
     def synthesize(self, text):
         """Takes the given text and synthesizes speech using the TTS model.
@@ -211,14 +215,14 @@ class TtsDmModule(retico_core.AbstractModule):
 
         return waveform, outputs
 
-    def one_clause_text_and_words(self, clause_ius):
+    def recreate_text_from_ius(self, incremental_chunk_ius):
         """Convert received IUs data accumulated in current_input list into a
         string.
 
         Returns:
             string: sentence chunk to synthesize speech from.
         """
-        words = [iu.text for iu in clause_ius]
+        words = [iu.text for iu in incremental_chunk_ius]
         return "".join(words), words
         # return " ".join(words), words
 
@@ -228,7 +232,7 @@ class TtsDmModule(retico_core.AbstractModule):
         information about the dialogue from the DMIUS (interruptions,
         backchannels, etc).
         For now, the speech is synthsized every time a complete clause
-        is received (with the _process_one_clause function).
+        is received (with the _process_one_incremental_chunk function).
 
         Args:
             update_message (UpdateType): UpdateMessage that contains new
@@ -240,7 +244,8 @@ class TtsDmModule(retico_core.AbstractModule):
         if not update_message:
             return None
 
-        clause_ius = []
+        # clause_ius = []
+        incremental_chunk_ius = []
         for iu, ut in update_message:
             if isinstance(iu, TurnTextIU):
                 if iu.turn_id != self.interrupted_turn:
@@ -249,32 +254,33 @@ class TtsDmModule(retico_core.AbstractModule):
                     elif ut == retico_core.UpdateType.REVOKE:
                         self.revoke(iu)
                     elif ut == retico_core.UpdateType.COMMIT:
-                        clause_ius.append(iu)
+                        # clause_ius.append(iu)
+                        incremental_chunk_ius.append(iu)
             elif isinstance(iu, DMIU):
                 if ut == retico_core.UpdateType.ADD:
                     if iu.action == "hard_interruption":
-                        self.file_logger.info("hard_interruption")
-                        self.terminal_logger.info("hard_interruption")
+                        self.file_logger.debug("hard_interruption")
+                        self.terminal_logger.debug("hard_interruption")
                         self.interrupted_turn = self.current_turn_id
-                        self.first_clause = True
+                        self.first_incremental_chunk = True
                         self.current_input = []
                     elif iu.action == "soft_interruption":
-                        self.file_logger.info("soft_interruption")
+                        self.file_logger.debug("soft_interruption")
                     elif iu.action == "stop_turn_id":
-                        self.terminal_logger.info(
+                        self.terminal_logger.debug(
                             "STOP TURN ID",
                             debug=True,
                             iu_turn=iu.turn_id,
                             curr=self.current_turn_id,
                         )
-                        self.file_logger.info("stop_turn_id")
-                        self.terminal_logger.info("stop_turn_id")
+                        self.file_logger.debug("stop_turn_id")
+                        self.terminal_logger.debug("stop_turn_id")
                         if iu.turn_id > self.current_turn_id:
                             self.interrupted_turn = self.current_turn_id
-                        self.first_clause = True
+                        self.first_incremental_chunk = True
                         self.current_input = []
                     elif iu.action == "back_channel":
-                        self.terminal_logger.info("TTS BC", debug=True)
+                        self.terminal_logger.debug("TTS BC", debug=True)
                         self.backchannel = self.bc_text[random.randint(0, 5)]
                     if iu.event == "user_BOT_same_turn":
                         self.interrupted_turn = None
@@ -283,53 +289,56 @@ class TtsDmModule(retico_core.AbstractModule):
                 elif ut == retico_core.UpdateType.COMMIT:
                     continue
 
-        if len(clause_ius) != 0:
-            self.current_input.append(clause_ius)
+        # if len(clause_ius) != 0:
+        #     self.current_input.append(clause_ius)
 
-    def _process_one_clause(self):
+        if len(incremental_chunk_ius) != 0:
+            self.current_input.append(incremental_chunk_ius)
+
+    def _process_one_incremental_chunk(self):
         """function running in a separate thread, that synthesize and sends
-        speech when a complete textual clause is received and appened in
+        speech when a complete textual clause is received and appended in
         the current_input buffer."""
         while self._tts_thread_active:
             try:
                 time.sleep(0.02)
                 if len(self.current_input) != 0:
-                    clause_ius = self.current_input.pop(0)
-                    end_of_turn = clause_ius[-1].final
+                    incremental_chunk_ius = self.current_input.pop(0)
+                    end_of_turn = incremental_chunk_ius[-1].final
                     um = retico_core.UpdateMessage()
                     if end_of_turn:
-                        self.terminal_logger.info(
+                        self.terminal_logger.debug(
                             "EOT TTS",
                             debug=True,
                             end_of_turn=end_of_turn,
-                            clause_ius=clause_ius,
-                            len_clause_ius=len(clause_ius),
+                            incremental_chunk_ius=incremental_chunk_ius,
+                            len_incremental_chunk_iuss=len(incremental_chunk_ius),
                         )
-                        self.file_logger.info("EOT")
-                        self.first_clause = True
+                        self.file_logger.debug("EOT")
+                        self.first_incremental_chunk = True
                         um.add_iu(
-                            self.create_iu(grounded_in=clause_ius[-1], final=True),
+                            self.create_iu(grounded_in=incremental_chunk_ius[-1], final=True),
                             retico_core.UpdateType.ADD,
                         )
                     else:
-                        self.terminal_logger.info("EOC TTS")
-                        if self.first_clause:
-                            self.terminal_logger.info("start_answer_generation")
-                            self.file_logger.info("start_answer_generation")
-                            self.first_clause = False
-                        self.current_turn_id = clause_ius[-1].turn_id
-                        # output_ius = self.get_new_iu_buffer_from_clause_ius(clause_ius)
-                        output_ius = self.get_new_iu_buffer_from_clause_ius_sentence(clause_ius)
+                        if self.first_incremental_chunk:
+                            self.terminal_logger.debug("start_answer_generation")
+                            self.file_logger.debug("start_answer_generation")
+                            self.first_incremental_chunk = False
+                        self.current_turn_id = incremental_chunk_ius[-1].turn_id
+                        # output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius(clause_ius)
+                        output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius_sentence(incremental_chunk_ius)
                         um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
-                        self.file_logger.info("send_clause")
+                        self.file_logger.debug(f"send_{self.incrementality_level}")
+                        self.terminal_logger.debug(f"send_{self.incrementality_level}")
                     self.append(um)
                 elif self.backchannel is not None:
                     um = retico_core.UpdateMessage()
                     output_ius = self.get_ius_backchannel()
                     um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
                     self.append(um)
-                    self.terminal_logger.info("TTS BC send_backchannel", debug=True)
-                    self.file_logger.info("send_backchannel")
+                    self.terminal_logger.debug("TTS BC send_backchannel", debug=True)
+                    self.file_logger.debug("send_backchannel")
                     self.backchannel = None
             except Exception as e:
                 log_exception(module=self, exception=e)
@@ -367,7 +376,7 @@ class TtsDmModule(retico_core.AbstractModule):
             ius.append(iu)
         return ius
 
-    def get_new_iu_buffer_from_clause_ius(self, clause_ius):
+    def get_new_iu_buffer_from_incremental_chunk_ius(self, incremental_chunk_ius):
         """Function that aligns the TTS inputs and outputs. It links the words
         sent by LLM to audio chunks generated by TTS model. As we have access
         to the durations of the phonems generated by the model, we can link the
@@ -379,7 +388,7 @@ class TtsDmModule(retico_core.AbstractModule):
                 informations about grounded_iu, turn_id or char_id.
         """
         # preprocess on words
-        current_text, words = self.one_clause_text_and_words(clause_ius)
+        current_text, words = self.recreate_text_from_ius(incremental_chunk_ius)
 
         # pre_pro_words = []
         # pre_pro_words_distinct = []
@@ -393,8 +402,8 @@ class TtsDmModule(retico_core.AbstractModule):
         #                 )
         #             else:
         #                 pre_pro_words_distinct.append(words[: pre_pro_words[-1] + 1])
-        #     self.terminal_logger.info(pre_pro_words, debug=True)
-        #     self.terminal_logger.info(pre_pro_words_distinct, debug=True)
+        #     self.terminal_logger.debug(pre_pro_words, debug=True)
+        #     self.terminal_logger.debug(pre_pro_words_distinct, debug=True)
         #     pre_pro_words.pop(0)
         #     pre_pro_words_distinct.pop(0)
         #     pre_pro_words.append(len(words) - 1)
@@ -402,8 +411,8 @@ class TtsDmModule(retico_core.AbstractModule):
         #     log_exception(self, e)
         #     raise IndexError from e
 
-        # self.terminal_logger.info(pre_pro_words, debug=True)
-        # self.terminal_logger.info(pre_pro_words_distinct, debug=True)
+        # self.terminal_logger.debug(pre_pro_words, debug=True)
+        # self.terminal_logger.debug(pre_pro_words_distinct, debug=True)
 
         # if len(pre_pro_words) >= 2:
         #     pre_pro_words_distinct.append(
@@ -430,11 +439,11 @@ class TtsDmModule(retico_core.AbstractModule):
         # NB_FRAME_PER_DURATION = 256
         NB_FRAME_PER_DURATION = 512
 
-        self.file_logger.info("before_synthesize")
+        self.file_logger.debug("before_synthesize")
         new_audio, final_outputs = self.synthesize(current_text)
-        self.file_logger.info("after_synthesize")
+        self.file_logger.debug("after_synthesize")
         tokens = self.model.synthesizer.tts_model.tokenizer.text_to_ids(current_text)
-        self.file_logger.info("after_alignement")
+        self.file_logger.debug("after_alignement")
         audio_words_ends = []
         for i, x in enumerate(tokens):
             if x == self.space_token or i == len(tokens) - 1:
@@ -487,7 +496,7 @@ class TtsDmModule(retico_core.AbstractModule):
                         word_id = pre_pro_words[j]
 
                 temp_word = words[word_id]
-                grounded_iu = clause_ius[word_id]
+                grounded_iu = incremental_chunk_ius[word_id]
                 words_until_word_id = words[: word_id + 1]
                 len_words = [len(word) for word in words[: word_id + 1]]
                 char_id = sum(len_words) - 1
@@ -508,7 +517,7 @@ class TtsDmModule(retico_core.AbstractModule):
                 new_buffer.append(iu)
         return new_buffer
 
-    def get_new_iu_buffer_from_clause_ius_sentence(self, clause_ius):
+    def get_new_iu_buffer_from_incremental_chunk_ius_sentence(self, incremental_chunk_ius):
         """Function that aligns the TTS inputs and outputs. It links the words
         sent by LLM to audio chunks generated by TTS model. As we have access
         to the durations of the phonems generated by the model, we can link the
@@ -520,12 +529,12 @@ class TtsDmModule(retico_core.AbstractModule):
                 informations about grounded_iu, turn_id or char_id.
         """
         # Get words from clause text
-        current_text, _ = self.one_clause_text_and_words(clause_ius)
+        current_text, _ = self.recreate_text_from_ius(incremental_chunk_ius)
         current_text = current_text.lstrip()
         words = current_text.split(" ")
 
         # Synthesize audio from text
-        self.file_logger.info("before_synthesize")
+        self.file_logger.debug("before_synthesize")
         new_audio, outputs = self.synthesize(current_text)
         self.file_logger.info("after_synthesize")
         assert len(outputs) == 1  # only one clause, one sentence
@@ -580,6 +589,8 @@ class TtsDmModule(retico_core.AbstractModule):
             # Calculates last word that started during the audio chunk
             word_id = len([1 for word_end in words_last_frame if word_end < chunk_start + self.chunk_size])
             word_id = min(word_id, len(words) - 1)
+            grounded_iu = incremental_chunk_ius[word_id]
+            char_id = sum([len(word) for word in words[: word_id + 1]]) - 1
             grounded_iu = clause_ius[word_id]
             char_id = len(" ".join([word for word in words[: word_id + 1]]))
             iu = self.create_iu(
@@ -646,7 +657,7 @@ class TtsDmModule(retico_core.AbstractModule):
         self.iu_buffer = []
         self._tts_thread_active = True
         # threading.Thread(target=self._tts_thread).start()
-        threading.Thread(target=self._process_one_clause).start()
+        threading.Thread(target=self._process_one_incremental_chunk).start()
 
     def shutdown(self):
         super().shutdown()
