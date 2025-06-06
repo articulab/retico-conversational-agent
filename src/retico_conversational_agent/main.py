@@ -144,7 +144,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             initial_system_prompt=system_prompt,
             context_size=dh_size,
         )
-        llm_init = agent.LlmDmModuleHf
+        # llm_init = agent.LlmDmModuleHf
+        llm_init = agent.LlmDmModuleHfSubclass
 
     model_repo = None
     model_name = None
