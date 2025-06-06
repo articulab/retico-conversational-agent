@@ -147,7 +147,7 @@ class DialogueHistoryHf:
         self.dialogue_history[0]["content"] = system_prompt
         return previous_system_prompt
 
-    def get_prompt(self, fun_tokenize, start=0, end=None):
+    def get_prompt(self, tokenize_dialogue_history, start=0, end=None):
         """Get the formatted prompt containing all turns between start and end.
 
         Args:
@@ -170,9 +170,9 @@ class DialogueHistoryHf:
             system_prompt = []
 
         dh = system_prompt + self.dialogue_history[start:end]
-        return (dh, fun_tokenize(dh))
+        return (dh, tokenize_dialogue_history(dh))
 
-    def prepare_dialogue_history(self, fun_tokenize):
+    def prepare_dialogue_history(self, tokenize_dialogue_history):
         """Calculate if the current dialogue history is bigger than the LLM's
         context size (in nb of token). If the dialogue history contains too
         many tokens, remove the older dialogue turns until its size is smaller
@@ -181,7 +181,7 @@ class DialogueHistoryHf:
         start back the while loop at this id).
 
         Args:
-            fun_tokenize (Callable[]): the tokenize function given by
+            tokenize_dialogue_history (Callable[]): the tokenize function given by
                 the LLM, so that the DialogueHistory can calculate the
                 right dialogue_history size.
 
@@ -189,13 +189,13 @@ class DialogueHistoryHf:
             (List[int]): the prompt tokens to give the LLM.
         """
 
-        dh, prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
+        dh, prompt_tokens = self.get_prompt(tokenize_dialogue_history, start=self.cpt_0)
         nb_tokens = len(prompt_tokens)
         while nb_tokens > self.context_size:
             self.cpt_0 += 2
             if self.cpt_0 >= len(self.dialogue_history):
                 raise ValueError("System prompt is too long, please increase the context size or cut system prompt.")
-            dh, prompt_tokens = self.get_prompt(fun_tokenize, start=self.cpt_0)
+            dh, prompt_tokens = self.get_prompt(tokenize_dialogue_history, start=self.cpt_0)
             nb_tokens = len(prompt_tokens)
         return prompt_tokens, dh
 

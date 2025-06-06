@@ -61,6 +61,7 @@ Teacher :"
 
 import threading
 import time
+from typing import Callable, Tuple
 from llama_cpp import Llama, llama_chat_format
 
 import retico_core
@@ -78,7 +79,65 @@ from .additional_IUs import (
 )
 
 
-class LLamaCppSubclass:
+class AbstractLLMSubclass:
+
+    @staticmethod
+    def setup(self):
+        """Setup function that initialize the LLM model.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def produce(
+        self,
+        history: list[dict[int, str, str]],
+        prompt_tokens: list[int],
+        stopping_criteria: Callable,
+        incremental_iu_sending_hf: Callable,
+    ) -> Tuple[str, int]:
+        """Subclass's producing function that calls the LLM and handles all LLM-related
+        pre and post-processing to return a formatted result.
+
+        Args:
+            history (list[dict[int, str, str]]): The list of previous turns from agent and user. Using Huggingface's
+                chat format describing a turn as a dict containing a "role" and a "content", enhanced with a "turn_id"
+                attribute (resulting in a dict[int, str, str] type).
+            prompt_tokens (list[int]): Tokenized prompt to use as LLM's input.
+            stopping_criteria (Callable): Function defined in LlmDmModuleSubclass to use a the LLM's stopping_criteria.
+            incremental_iu_sending_hf (Callable): Callback function defined in LlmDmModuleSubclass to call after each
+                new token generated.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+
+        Returns:
+            Tuple[str, int]: Once it's completely generated, returns new agent turn, and the number of tokens that it
+                corresponds to.
+        """
+        raise NotImplementedError()
+
+    def get_token_eos(self) -> int:
+        """Function that returns the LLM's EOS token.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+        """
+        raise NotImplementedError()
+
+    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> str:
+        """Function that takes the Dialogue History, and returns the formatted and tokenized prompt to use as LLM's
+        input.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+        """
+        raise NotImplementedError()
+
+
+class LLamaCppSubclass(AbstractLLMSubclass):
     def __init__(
         self,
         model_path,
@@ -192,8 +251,8 @@ class LLamaCppSubclass:
     def get_token_eos(self):
         return self.model.token_eos()
 
-    def apply_chat_template_f(self, messages):
-        result = self.chat_formatter(messages=messages)
+    def tokenize_dialogue_history(self, history):
+        result = self.chat_formatter(history=history)
         prompt = self.model.tokenize(
             result.prompt.encode("utf-8"),
             add_bos=not result.added_special,
@@ -584,7 +643,7 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         # TODO : find a way to have only one data buffer for generated token/text. currently we have competitively IU buffer (current_output), and text buffer (agent_sentence).
         # this way, we would only have to remove from one buffer when deleting stop pattern, or role pattern.
         self.new_user_sentence()
-        prompt_tokens, history = self.dialogue_history.prepare_dialogue_history(self.subclass.apply_chat_template_f)
+        prompt_tokens, history = self.dialogue_history.prepare_dialogue_history(self.subclass.tokenize_dialogue_history)
 
         # Define the parameters
         self.nb_clauses = 0

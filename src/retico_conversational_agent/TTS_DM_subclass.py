@@ -46,7 +46,39 @@ from .additional_IUs import (
 import alignment_xtts
 
 
-class CoquiTTSSubclass:
+class AbstractTTSSubclass:
+
+    @staticmethod
+    def setup(self) -> Tuple[int, int]:
+        """Setup function that initialize the TTS model. Returns the model's output sample rate and  sample width.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def produce(
+        self,
+        current_text: str,
+    ) -> Tuple[list[float], list[float]]:
+        """Subclass's producing function that calls the TTS and handles all TTS-related
+        pre and post-processing to return a formatted result.
+
+        Args:
+            current_text (str): The text to produce Speech from.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+
+        Returns:
+            Tuple[list[float], list[float]]: Returns both the audio data in float32 format (a ndarray of floats) and
+                the duration (in nb frames) of each word contained in current_text (a list of int)
+        """
+        raise NotImplementedError()
+
+
+class CoquiTTSSubclass(AbstractTTSSubclass):
 
     LANGUAGE_MAPPING = {
         "xtts": "tts_models/multilingual/multi-dataset/xtts_v2",
@@ -135,22 +167,22 @@ class CoquiTTSSubclass:
                     if x == self.space_token or i == len(tokens) - 1:
                         audio_words_ends.append(i + 1)
                 # calculate audio duration per word
-                words_duration = []
+                words_durations = []
                 old_len_w = 0
                 for s_id in audio_words_ends:
-                    # words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
-                    words_duration.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
+                    # words_durations.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
+                    words_durations.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
                     old_len_w = s_id
             if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
                 alignment_required_data = outputs[0]["alignment_required_data"]
                 words_durations_in_nb_frames, words_durations_in_sec, alignments = (
                     alignment_xtts.get_words_durations_from_xtts_output(alignment_required_data)
                 )
-                words_duration = words_durations_in_nb_frames
+                words_durations = words_durations_in_nb_frames
         except Exception as e:
             log_exception(module=self, exception=e)
 
-        return audio_data, words_duration
+        return audio_data, words_durations
 
     def _synthesize(self, text):
         """Takes the given text and synthesizes speech using the TTS model.
@@ -424,14 +456,13 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
             list[BackchannelIU]: list of BackchannelIUs, transcriptions
                 of 'self.backchannel'.
         """
-        new_audio, outputs = self.subclass._synthesize(self.backchannel)
-        outputs = outputs[0]
-        len_wav = len(outputs["wav"])
+        audio_data, words_durations = self.subclass.produce(self.backchannel)
+        len_wav = len(audio_data)
 
         ius = []
         i = 0
         while i < len_wav:
-            chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=outputs["wav"][i : i + self.chunk_size])
+            chunk = retico_core.audio.convert_audio_float32_to_PCM16(raw_audio=audio_data[i : i + self.chunk_size])
             if len(chunk) < self.chunk_size_bytes:
                 chunk = chunk + b"\x00" * (self.chunk_size_bytes - len(chunk))
 
@@ -466,13 +497,13 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
         words = current_text.split(" ")
 
         self.file_logger.info("before_produce")
-        audio_data, words_duration = self.subclass.produce(current_text)
+        audio_data, words_durations = self.subclass.produce(current_text)
         self.file_logger.info("after_produce")
 
-        self.terminal_logger.info("words_duration", words_duration)
+        self.terminal_logger.info("words_durations", words_durations)
         # Check that input words matches synthesized audio
-        assert len(words_duration) == len(words)
-        words_last_frame = np.cumsum(words_duration).tolist()
+        assert len(words_durations) == len(words)
+        words_last_frame = np.cumsum(words_durations).tolist()
         new_buffer = []
         # Split the audio into same-size chunks
         for chunk_start in range(0, len(audio_data), self.chunk_size):
@@ -585,22 +616,22 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
     #     durations = outputs["outputs"]["durations"].squeeze().tolist()
     #     total_duration = int(sum(durations))
 
-    #     words_duration = []
+    #     words_durations = []
     #     old_len_w = 0
     #     for s_id in audio_words_ends:
-    #         words_duration.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
-    #         # words_duration.append(int(sum(durations[old_len_w:s_id])) * len_wav / total_duration )
+    #         words_durations.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
+    #         # words_durations.append(int(sum(durations[old_len_w:s_id])) * len_wav / total_duration )
     #         old_len_w = s_id
 
     #     # if self.verbose:
-    #     #     if len(pre_pro_words) > len(words_duration):
+    #     #     if len(pre_pro_words) > len(words_durations):
     #     #         print("TTS word alignment not exact, less tokens than words")
-    #     #     elif len(pre_pro_words) < len(words_duration):
+    #     #     elif len(pre_pro_words) < len(words_durations):
     #     #         print("TTS word alignment not exact, more tokens than words")
 
-    #     words_last_frame = np.cumsum(words_duration).tolist()
+    #     words_last_frame = np.cumsum(words_durations).tolist()
     #     assert len(durations) == len(tokens)
-    #     assert len(words_duration) == len(pre_pro_words)
+    #     assert len(words_durations) == len(pre_pro_words)
     #     assert len_wav == total_duration * NB_FRAME_PER_DURATION
 
     #     i = 0
