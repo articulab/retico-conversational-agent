@@ -99,7 +99,7 @@ class WhisperASRSubclass(AbstractASRSubclass):
         return transcription
 
 
-class AsrDmModule(retico_core.AbstractModule):
+class AsrDmModuleSubclass(retico_core.AbstractModule):
     """A retico module that provides Automatic Speech Recognition (ASR) using a
     OpenAI's Whisper model. Periodically predicts a new text hypothesis from
     the input incremental speech and predicts a final hypothesis when it is the
@@ -152,7 +152,7 @@ class AsrDmModule(retico_core.AbstractModule):
                 Defaults to 16000.
         """
         super().__init__(**kwargs)
-        self.subclass = subclass(device, **kwargs)
+        self.subclass = subclass(device=device, **kwargs)
 
         self._asr_thread_active = False
         self.latest_input_iu = None

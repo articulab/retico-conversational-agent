@@ -258,7 +258,7 @@ class LLamaCppSubclass(AbstractLLMSubclass):
         return self.model.token_eos()
 
     def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> str:
-        result = self.chat_formatter(history=history)
+        result = self.chat_formatter(messages=history)
         prompt = self.model.tokenize(
             result.prompt.encode("utf-8"),
             add_bos=not result.added_special,
