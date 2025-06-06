@@ -180,7 +180,12 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     dm.add_continue_policy()
     # dm.add_backchannel_policy()
 
-    asr = agent.AsrDmModule(
+    # asr = agent.AsrDmModule(
+    #     device=device,
+    #     full_sentences=True,
+    #     input_framerate=rate,
+    # )
+    asr = agent.AsrDmModuleSubclass(
         device=device,
         full_sentences=True,
         input_framerate=rate,

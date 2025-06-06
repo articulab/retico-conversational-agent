@@ -237,7 +237,13 @@ class LLamaCppSubclass(AbstractLLMSubclass):
             .cell_contents
         )
 
-    def produce(self, history, prompt_tokens, stopping_criteria, incremental_iu_sending_hf):
+    def produce(
+        self,
+        history: list[dict[int, str, str]],
+        prompt_tokens: list[int],
+        stopping_criteria: Callable,
+        incremental_iu_sending_hf: Callable,
+    ) -> Tuple[str, int]:
         if self.use_chat_completion:
             agent_sentence, agent_sentence_nb_tokens = self._create_chat_completion(
                 history, stopping_criteria, incremental_iu_sending_hf
@@ -248,10 +254,10 @@ class LLamaCppSubclass(AbstractLLMSubclass):
             )
         return agent_sentence, agent_sentence_nb_tokens
 
-    def get_token_eos(self):
+    def get_token_eos(self) -> int:
         return self.model.token_eos()
 
-    def tokenize_dialogue_history(self, history):
+    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> str:
         result = self.chat_formatter(history=history)
         prompt = self.model.tokenize(
             result.prompt.encode("utf-8"),
@@ -413,12 +419,11 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         model_repo,
         model_name,
         dialogue_history: DialogueHistoryHf,
-        use_chat_completion=False,
         device=None,
         context_size=2000,
         verbose=False,
         incrementality_level="clause",  # turn, sentence, clause, word
-        subclass=LLamaCppSubclass,
+        subclass: AbstractLLMSubclass = LLamaCppSubclass,
         **kwargs,
     ):
         """Initializes the LlamaCppMemoryIncremental Module.
@@ -482,7 +487,6 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
             model_path=model_path,
             model_repo=model_repo,
             model_name=model_name,
-            use_chat_completion=use_chat_completion,
             context_size=context_size,
             device=device,
             verbose=verbose,

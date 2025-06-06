@@ -273,7 +273,7 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
         verbose=False,
         device=None,
         incrementality_level="clause",  # turn, sentence, clause, word
-        subclass=CoquiTTSSubclass,
+        subclass: AbstractTTSSubclass = CoquiTTSSubclass,
         **kwargs,
     ):
         """Initializes the CoquiTTSInterruption Module.

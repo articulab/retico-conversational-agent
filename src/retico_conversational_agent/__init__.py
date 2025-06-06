@@ -2,6 +2,7 @@
 
 from retico_conversational_agent.VAD_DM import VadModule
 from retico_conversational_agent.ASR_DM import AsrDmModule
+from retico_conversational_agent.ASR_DM_subclass import AsrDmModuleSubclass
 from retico_conversational_agent.LLM_DM import LlmDmModule
 from retico_conversational_agent.TTS_DM import TtsDmModule
 from retico_conversational_agent.TTS_DM_subclass import TtsDmModuleSubclass
