@@ -186,7 +186,17 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         input_framerate=rate,
     )
 
-    tts = agent.TtsDmModule(
+    # tts = agent.TtsDmModule(
+    #     language="en",
+    #     model_name=tts_model,
+    #     speaker_id=tts_speaker_id,
+    #     verbose=printing,
+    #     frame_duration=tts_frame_length,
+    #     device=device,
+    #     incrementality_level=incrementality_level,
+    # )
+
+    tts = agent.TtsDmModuleSubclass(
         language="en",
         model_name=tts_model,
         speaker_id=tts_speaker_id,
