@@ -144,7 +144,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             initial_system_prompt=system_prompt,
             context_size=dh_size,
         )
-        llm_init = agent.LlmDmModuleHf
+        # llm_init = agent.LlmDmModuleHf
+        llm_init = agent.LlmDmModuleHfSubclass
 
     model_repo = None
     model_name = None
@@ -179,13 +180,28 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     dm.add_continue_policy()
     # dm.add_backchannel_policy()
 
-    asr = agent.AsrDmModule(
+    # asr = agent.AsrDmModule(
+    #     device=device,
+    #     full_sentences=True,
+    #     input_framerate=rate,
+    # )
+    asr = agent.AsrDmModuleSubclass(
         device=device,
         full_sentences=True,
         input_framerate=rate,
     )
 
-    tts = agent.TtsDmModule(
+    # tts = agent.TtsDmModule(
+    #     language="en",
+    #     model_name=tts_model,
+    #     speaker_id=tts_speaker_id,
+    #     verbose=printing,
+    #     frame_duration=tts_frame_length,
+    #     device=device,
+    #     incrementality_level=incrementality_level,
+    # )
+
+    tts = agent.TtsDmModuleSubclass(
         language="en",
         model_name=tts_model,
         speaker_id=tts_speaker_id,

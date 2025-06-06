@@ -208,7 +208,7 @@ class DialogueHistory:
         self.dialogue_history[0]["content"] = system_prompt
         return previous_system_prompt
 
-    def prepare_dialogue_history(self, fun_tokenize):
+    def prepare_dialogue_history(self, tokenize_dialogue_history):
         """Calculate if the current dialogue history is bigger than the LLM's
         context size (in nb of token). If the dialogue history contains too
         many tokens, remove the older dialogue turns until its size is smaller
@@ -217,7 +217,7 @@ class DialogueHistory:
         start back the while loop at this id).
 
         Args:
-            fun_tokenize (Callable[]): the tokenize function given by
+            tokenize_dialogue_history (Callable[]): the tokenize function given by
                 the LLM, so that the DialogueHistory can calculate the
                 right dialogue_history size.
 
@@ -228,12 +228,12 @@ class DialogueHistory:
         """
 
         prompt = self.get_prompt(self.cpt_0)
-        prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
+        prompt_tokens = tokenize_dialogue_history(bytes(prompt, "utf-8"))
         nb_tokens = len(prompt_tokens)
         while nb_tokens > self.context_size:
             self.cpt_0 += 1
             prompt = self.get_prompt(self.cpt_0)
-            prompt_tokens = fun_tokenize(bytes(prompt, "utf-8"))
+            prompt_tokens = tokenize_dialogue_history(bytes(prompt, "utf-8"))
             nb_tokens = len(prompt_tokens)
         return prompt, prompt_tokens
 
