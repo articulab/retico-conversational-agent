@@ -82,21 +82,10 @@ from .additional_IUs import (
 class AbstractLLMSubclass:
 
     @staticmethod
-    def setup(self):
-        """Setup function that initialize the LLM model.
-
-        Raises:
-            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
-        """
-        raise NotImplementedError()
-
-    @staticmethod
     def produce(
         self,
         history: list[dict[int, str, str]],
         prompt_tokens: list[int],
-        stopping_criteria: Callable,
-        incremental_iu_sending_hf: Callable,
     ) -> Tuple[str, int]:
         """Subclass's producing function that calls the LLM and handles all LLM-related
         pre and post-processing to return a formatted result.
@@ -106,9 +95,6 @@ class AbstractLLMSubclass:
                 chat format describing a turn as a dict containing a "role" and a "content", enhanced with a "turn_id"
                 attribute (resulting in a dict[int, str, str] type).
             prompt_tokens (list[int]): Tokenized prompt to use as LLM's input.
-            stopping_criteria (Callable): Function defined in LlmDmModuleSubclass to use a the LLM's stopping_criteria.
-            incremental_iu_sending_hf (Callable): Callback function defined in LlmDmModuleSubclass to call after each
-                new token generated.
 
         Raises:
             NotImplementedError: Raises NotImplementedError if not implemented in subclass.
@@ -119,6 +105,7 @@ class AbstractLLMSubclass:
         """
         raise NotImplementedError()
 
+    @staticmethod
     def get_token_eos(self) -> int:
         """Function that returns the LLM's EOS token.
 
@@ -127,7 +114,8 @@ class AbstractLLMSubclass:
         """
         raise NotImplementedError()
 
-    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> str:
+    @staticmethod
+    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> list[int]:
         """Function that takes the Dialogue History, and returns the formatted and tokenized prompt to use as LLM's
         input.
 
@@ -135,6 +123,62 @@ class AbstractLLMSubclass:
             NotImplementedError: Raises NotImplementedError if not implemented in subclass.
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def subclass_stopping_criteria(self, tokens, logits):
+        """Function that checks if the LLM generation should stop, based on the tokens and logits generated.
+
+        Args:
+            tokens (list[int]): List of tokens generated so far.
+            logits (list[float]): List of logits corresponding to the generated tokens.
+
+        Raises:
+            NotImplementedError: Raises NotImplementedError if not implemented in subclass.
+
+        Returns:
+            str or None: Returns a string indicating the stopping criteria if it is met, otherwise returns None.
+        """
+        raise NotImplementedError()
+
+    def setup(
+        self, set_stop_crit_flag: Callable, llm_module_stopping_criteria: Callable, incremental_iu_sending_hf: Callable
+    ):
+        """Setup function that initialize the LLM model.
+
+        Args:
+            set_stop_crit_flag (Callable): function that sets the which_stop_criteria flag of the LLM module.
+            llm_module_stopping_criteria (Callable): function that is used as a stopping criteria for the LLM
+                generation, managed by the LLM Module.
+            incremental_iu_sending_hf (Callable): callback function defined in LlmDmModuleSubclass to call after each
+                new token generated, to send the new word to the next module in the pipeline.
+        """
+        self.set_stop_crit_flag = set_stop_crit_flag
+        self.llm_module_stopping_criteria = llm_module_stopping_criteria
+        self.incremental_iu_sending_hf = incremental_iu_sending_hf
+
+    def stopping_criteria(self, tokens, logits):
+        """Function called by the LLM subclass during generation to check if the generation should stop.
+        It calls both the llm_module_stopping_criteria and the subclass_stopping_criteria functions.
+        The first manages stopping criteria that are related to the LLM retico module itself (like interruption),
+        while the second manages stopping criteria that are specific to the subclass implementation, llm model, etc.
+
+        Args:
+            tokens (list[int]): List of tokens generated so far.
+            logits (list[float]): List of logits corresponding to the generated tokens.
+
+        Returns:
+            bool: returns True if the generation should stop, False otherwise.
+        """
+        llm_module_stop_result = self.llm_module_stopping_criteria()
+        if llm_module_stop_result is not None:
+            self.set_stop_crit_flag(llm_module_stop_result)
+            return True
+        else:
+            subclass_stop_result = self.subclass_stopping_criteria(tokens, logits)
+            if subclass_stop_result is not None:
+                self.set_stop_crit_flag(subclass_stop_result)
+                return True
+        return False
 
 
 class LLamaCppSubclass(AbstractLLMSubclass):
@@ -202,8 +246,10 @@ class LLamaCppSubclass(AbstractLLMSubclass):
         self.repeat_penalty = repeat_penalty
         self.verbose = verbose
         self.chat_formatter = None
+        self.prompt_size = 0
 
-    def setup(self):
+    def setup(self, **kwargs):
+        super().setup(**kwargs)
         if self.model_path is not None:
             self.model = Llama(
                 model_path=self.model_path,
@@ -237,52 +283,47 @@ class LLamaCppSubclass(AbstractLLMSubclass):
             .cell_contents
         )
 
+    def subclass_stopping_criteria(self, tokens, logits):
+        if tokens[-1] == self.get_token_eos():
+            return "stop_token"
+        elif len(tokens) == self.context_size - self.prompt_size:
+            return "max_tokens"
+        return None
+
     def produce(
         self,
         history: list[dict[int, str, str]],
         prompt_tokens: list[int],
-        stopping_criteria: Callable,
-        incremental_iu_sending_hf: Callable,
     ) -> Tuple[str, int]:
         if self.use_chat_completion:
-            agent_sentence, agent_sentence_nb_tokens = self._create_chat_completion(
-                history, stopping_criteria, incremental_iu_sending_hf
-            )
+            agent_sentence, agent_sentence_nb_tokens = self._create_chat_completion(history)
         else:
-            agent_sentence, agent_sentence_nb_tokens = self._generate_next_sentence(
-                prompt_tokens, stopping_criteria, incremental_iu_sending_hf
-            )
+            agent_sentence, agent_sentence_nb_tokens = self._generate_next_sentence(prompt_tokens)
         return agent_sentence, agent_sentence_nb_tokens
 
     def get_token_eos(self) -> int:
         return self.model.token_eos()
 
-    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> str:
+    def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> list[int]:
         result = self.chat_formatter(messages=history)
         prompt = self.model.tokenize(
             result.prompt.encode("utf-8"),
             add_bos=not result.added_special,
             special=True,
         )
+        self.prompt_size = len(prompt)
         return prompt
 
-    def _generate_next_sentence(self, prompt_tokens, stopping_criteria, incremental_iu_sending_hf):
-        """Generates the agent next sentence from the constructed prompt
-        (dialogue scenario, dialogue history, instruct...). At each generated
-        token, check is the end of the sentence corresponds to a stopping
-        pattern, role pattern, or punctuation. Sends the info to the retico
-        Module using the submodule function. Stops the generation if a stopping
-        token pattern is encountered (using the
-        stop_multiple_utterances_generation as the stopping criteria).
+    def _generate_next_sentence(self, prompt_tokens):
+        """Generates a turn by calling the LLM with the prompt_tokens as input.
+        The generation stops if the stopping criteria of either the LLM module or the subclass is met.
 
         Args:
-            subprocess (function): the function to call during the
-                sentence generation to possibly send chunks of sentence
-                to the children modules.
+            prompt_tokens (list[int]): the tokenized prompt (including system prompt, dialogue history, intruct...)
+                that will be used as input to the LLM.
 
         Returns:
-            string: Agent new generated sentence. int: nb tokens in new
-                agent sentence.
+            str: The generated turn as a string.
         """
 
         # IMPORTANT : the stop crit is executed after the body of the for loop,
@@ -290,7 +331,7 @@ class LLamaCppSubclass(AbstractLLMSubclass):
         tokens = []
         for token in self.model.generate(
             prompt_tokens,
-            stopping_criteria=stopping_criteria,
+            stopping_criteria=self.stopping_criteria,
             top_k=self.top_k,
             top_p=self.top_p,
             temp=self.temp,
@@ -298,31 +339,19 @@ class LLamaCppSubclass(AbstractLLMSubclass):
         ):
             tokens.append(token)
             new_word = self.model.detokenize([token]).decode("utf-8", errors="ignore")
-            incremental_iu_sending_hf(token, new_word)
+            self.incremental_iu_sending_hf(token, new_word)
         return self.model.detokenize(tokens).decode("utf-8", errors="ignore"), len(tokens)
 
-    def _create_chat_completion(self, history, stopping_criteria, incremental_iu_sending_hf):
-        """Generates the agent next sentence from the constructed prompt
-        (dialogue scenario, dialogue history, instruct...). At each generated
-        token, check is the end of the sentence corresponds to a stopping
-        pattern, role pattern, or punctuation. Sends the info to the retico
-        Module using the submodule function. Stops the generation if a stopping
-        token pattern is encountered (using the
-        stop_multiple_utterances_generation as the stopping criteria).
+    def _create_chat_completion(self, history):
+        """Generates a turn by calling the LLM with the prompt_tokens as input.
+        The generation stops if the stopping criteria of either the LLM module or the subclass is met.
 
         Args:
-            subprocess (function): the function to call during the
-                sentence generation to possibly send chunks of sentence
-                to the children modules.
-            top_k (int, optional): _description_. Defaults to 40.
-            top_p (float, optional): _description_. Defaults to 0.95.
-            temp (float, optional): _description_. Defaults to 1.0.
-            repeat_penalty (float, optional): _description_. Defaults to
-                1.1.
+            history (list[dict[int, str, str]]): the Dialogue History in HuggingFace's format (a list of dictionaries,
+                each corresponding to a turn) that will be used as input to the LLM.
 
         Returns:
-            string: Agent new generated sentence. int: nb tokens in new
-                agent sentence.
+            str: The generated turn as a string.
         """
 
         tokens = []
@@ -337,9 +366,9 @@ class LLamaCppSubclass(AbstractLLMSubclass):
         ):
             tokens.append(token)
             new_word = self.model.detokenize([token]).decode("utf-8", errors="ignore")
-            incremental_iu_sending_hf(token, new_word)
+            self.incremental_iu_sending_hf(token, new_word)
 
-            if stopping_criteria(tokens, None):
+            if self.stopping_criteria(tokens, None):
                 break
             # if len(tokens) == self.context_size - self.dialogue_history.context_size:
             #     self.which_stop_criteria = "max_tokens"
@@ -622,17 +651,23 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
             self.current_output = []
         self.append(um)
 
-    def stopping_criteria(self, tokens, logits):
-        if tokens[-1] == self.subclass.get_token_eos():
-            self.which_stop_criteria = "stop_token"
-            return True
-        elif len(tokens) == self.context_size - self.dialogue_history.context_size:
-            self.which_stop_criteria = "max_tokens"
-            return True
-        elif self.interruption:
-            self.which_stop_criteria = "interruption"
-            return True
-        return False
+    def set_stop_crit_flag(self, stop_crit: str):
+        """Function that sets which_stop_criteria to the given stop_crit.
+
+        Args:
+            stop_crit (str): the stopping criteria that stopped LLM generation.
+        """
+        self.which_stop_criteria = stop_crit
+
+    def llm_module_stopping_criteria(self):
+        """Function that is used as a stopping criteria for the LLM generation.
+
+        Returns:
+            bool: True if the generation should stop, False otherwise.
+        """
+        if self.interruption:
+            return "interruption"
+        return None
 
     def process_incremental(self):
         """Function that calls the submodule LLamaCppMemoryIncremental to
@@ -653,9 +688,7 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         self.nb_clauses = 0
         self.which_stop_criteria = None
         self.file_logger.info("start_process")
-        agent_sentence, agent_sentence_nb_tokens = self.subclass.produce(
-            history, prompt_tokens, self.stopping_criteria, self.incremental_iu_sending_hf
-        )
+        agent_sentence, agent_sentence_nb_tokens = self.subclass.produce(history, prompt_tokens)
 
         um = retico_core.UpdateMessage()
         # print("self.which_stop_criteria =", self.which_stop_criteria)
@@ -813,7 +846,11 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         init_stop_criteria function.
         """
         super().setup(**kwargs)
-        self.subclass.setup()
+        self.subclass.setup(
+            set_stop_crit_flag=self.set_stop_crit_flag,
+            llm_module_stopping_criteria=self.llm_module_stopping_criteria,
+            incremental_iu_sending_hf=self.incremental_iu_sending_hf,
+        )
 
     def prepare_run(self):
         """Overrides AbstractModule : https://github.com/retico-team/retico-
