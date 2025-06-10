@@ -43,7 +43,7 @@ from .additional_IUs import (
     DMIU,
 )
 
-import alignment_xtts
+from .alignment_xtts import get_words_durations_from_xtts_output
 
 
 class AbstractTTSSubclass:
@@ -175,8 +175,8 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
                     old_len_w = s_id
             if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
                 alignment_required_data = outputs[0]["alignment_required_data"]
-                words_durations_in_nb_frames, words_durations_in_sec, alignments = (
-                    alignment_xtts.get_words_durations_from_xtts_output(alignment_required_data)
+                words_durations_in_nb_frames, words_durations_in_sec, alignments = get_words_durations_from_xtts_output(
+                    alignment_required_data
                 )
                 words_durations = words_durations_in_nb_frames
         except Exception as e:

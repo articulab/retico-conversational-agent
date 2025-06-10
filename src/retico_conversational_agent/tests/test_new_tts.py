@@ -7,7 +7,7 @@ import torch
 from TTS.api import TTS
 import numpy as np
 import retico_core
-import alignment_xtts
+from agent import alignment_xtts
 
 
 def synthesize(text, is_multilingual, model, language, speaker_id=None, speaker_wav=None):

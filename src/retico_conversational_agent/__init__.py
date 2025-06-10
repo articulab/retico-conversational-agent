@@ -14,7 +14,6 @@ from retico_conversational_agent.dialogue_history_hf import DialogueHistoryHf
 from retico_conversational_agent.LLM_DM_HF import LlmDmModuleHf
 from retico_conversational_agent.LLM_DM_HF_subclass import LlmDmModuleHfSubclass
 
-
 from retico_conversational_agent.additional_IUs import (
     VADTurnAudioIU,
     TurnTextIU,

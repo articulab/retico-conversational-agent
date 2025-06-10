@@ -18,7 +18,10 @@ from retico_core.audio import MicrophonePTTModule
 from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
 
 import retico_conversational_agent as agent
-from retico_conversational_agent.main_cleps import main_DM_remote_computing_remote, main_DM_remote_computing_local
+from retico_conversational_agent.main_remote_computing import (
+    main_DM_remote_computing_remote,
+    main_DM_remote_computing_local,
+)
 
 
 def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
