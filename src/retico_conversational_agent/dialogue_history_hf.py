@@ -96,16 +96,17 @@ class DialogueHistoryHf:
         #     self.prompt_format_config = json.load(config)
         if initial_dh is not None:
             self.dialogue_history = initial_dh
-            if initial_dh[0]["role"] == "system_prompt":
+            if initial_dh[0]["role"] == "system":
                 self.initial_system_prompt = initial_dh[0]["content"]
                 self.current_system_prompt = initial_dh[0]["content"]
         else:
+            self.terminal_logger.info("initial system prompt")
             self.initial_system_prompt = initial_system_prompt
             self.current_system_prompt = initial_system_prompt
             self.dialogue_history = [
                 {
                     "turn_id": -1,
-                    "role": "system_prompt",
+                    "role": "system",
                     "content": initial_system_prompt,
                 }
             ]

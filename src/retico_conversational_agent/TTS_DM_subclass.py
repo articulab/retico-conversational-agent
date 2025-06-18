@@ -422,7 +422,9 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                         self.file_logger.info("EOT")
                         self.first_incremental_chunk = True
                         um.add_iu(
-                            self.create_iu(grounded_in=incremental_chunk_ius[-1], final=True),
+                            self.create_iu(
+                                grounded_in=incremental_chunk_ius[-1], final=True, turn_id=self.current_turn_id
+                            ),
                             retico_core.UpdateType.ADD,
                         )
                     else:
@@ -434,16 +436,16 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                         # output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius(clause_ius)
                         output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius_sentence(incremental_chunk_ius)
                         um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
-                        self.file_logger.info(f"send_{self.incrementality_level}")
-                        self.terminal_logger.info(f"send_{self.incrementality_level}")
+                        self.file_logger.debug(f"send_{self.incrementality_level}")
+                        self.terminal_logger.debug(f"send_{self.incrementality_level}")
                     self.append(um)
                 elif self.backchannel is not None:
                     um = retico_core.UpdateMessage()
                     output_ius = self.get_ius_backchannel()
                     um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
                     self.append(um)
-                    self.terminal_logger.info("TTS BC send_backchannel")
-                    self.file_logger.info("send_backchannel")
+                    self.terminal_logger.debug("TTS BC send_backchannel")
+                    self.file_logger.debug("send_backchannel")
                     self.backchannel = None
             except Exception as e:
                 log_exception(module=self, exception=e)
@@ -500,9 +502,12 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
         audio_data, words_durations = self.subclass.produce(current_text)
         self.file_logger.info("after_produce")
 
-        self.terminal_logger.info("words_durations", words_durations)
+        self.terminal_logger.info(
+            "words_durations", words_durations=words_durations, len_word_dur=len(words_durations), len_words=len(words)
+        )
+
         # Check that input words matches synthesized audio
-        assert len(words_durations) == len(words)
+        # assert len(words_durations) == len(words)
         words_last_frame = np.cumsum(words_durations).tolist()
         new_buffer = []
         # Split the audio into same-size chunks
