@@ -306,6 +306,7 @@ class LLamaCppSubclass(AbstractLLMSubclass):
 
     def tokenize_dialogue_history(self, history: list[dict[int, str, str]]) -> list[int]:
         result = self.chat_formatter(messages=history)
+        # print("LLM DM HF Subclass tokenize_dialogue_history", result)
         prompt = self.model.tokenize(
             result.prompt.encode("utf-8"),
             add_bos=not result.added_special,
@@ -647,7 +648,7 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
             # self.file_logger.info("send_clause")
             # self.terminal_logger.info("send_clause", debug=True)
             self.file_logger.info(f"send_{self.incrementality_level}")
-            self.terminal_logger.info(f"send_{self.incrementality_level}")
+            self.terminal_logger.debug(f"send_{self.incrementality_level}")
             self.current_output = []
         self.append(um)
 
@@ -683,6 +684,8 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         # this way, we would only have to remove from one buffer when deleting stop pattern, or role pattern.
         self.new_user_sentence()
         prompt_tokens, history = self.dialogue_history.prepare_dialogue_history(self.subclass.tokenize_dialogue_history)
+
+        self.terminal_logger.info("LLM receives dialogue history", history=history)
 
         # Define the parameters
         self.nb_clauses = 0
@@ -741,6 +744,12 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
             raise NotImplementedError("this which_stop_criteria has not been implemented")
 
         print(f"LLM:\n{self.last_turn_agent_sentence}")
+
+        # TODO: to fix the unity side bugs, the agent sentence is added at the end of LLM generation
+        self.new_agent_sentence(
+            self.last_turn_agent_sentence,
+            self.current_input[-1].turn_id + 1,
+        )
 
         self.terminal_logger.info(
             "EOT STOP CRIT",
