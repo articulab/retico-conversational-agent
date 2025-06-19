@@ -326,7 +326,7 @@ class LlmDmModuleHf(retico_core.AbstractModule):
         """
         # it could be the DM that has that function, because the DM receives the IUs from speaker module too
         self.interrupted_speaker_iu = iu
-        self.terminal_logger.debug(
+        self.terminal_logger.trace(
             "interruption alignement LLM",
             debug=True,
             interrupted_iu_turn_id=iu.turn_id,
@@ -484,9 +484,9 @@ class LlmDmModuleHf(retico_core.AbstractModule):
                 self.commit(iu)
                 um.add_iu(iu, retico_core.UpdateType.COMMIT)
             # self.file_logger.debug("send_clause")
-            # self.terminal_logger.debug("send_clause", debug=True)
+            # self.terminal_logger.trace("send_clause", debug=True)
             self.file_logger.debug(f"send_{self.incrementality_level}")
-            self.terminal_logger.debug(f"send_{self.incrementality_level}")
+            self.terminal_logger.trace(f"send_{self.incrementality_level}")
             self.current_output = []
         self.append(um)
 
@@ -505,19 +505,18 @@ class LlmDmModuleHf(retico_core.AbstractModule):
     #         um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
     #     if self.finish_with_punctuation(tokens):
-    #         self.terminal_logger.debug("new_text", new_text=new_text, debug=True)
-    #         self.terminal_logger.debug("new_words", new_words=new_words, debug=True)
-    #         self.terminal_logger.debug(
+    #         self.terminal_logger.trace("new_text", new_text=new_text, debug=True)
+    #         self.terminal_logger.trace("new_words", new_words=new_words, debug=True)
+    #         self.terminal_logger.trace(
     #             "new_words LLM DM",
     #             new_words=[self.model.detokenize([t]).decode("utf-8", errors="ignore") for t in tokens],
-    #             debug=True,
     #         )
     #         self.nb_clauses += 1
     #         for iu in self.current_output:
     #             self.commit(iu)
     #             um.add_iu(iu, retico_core.UpdateType.COMMIT)
     #         self.file_logger.debug("send_clause")
-    #         self.terminal_logger.debug("send_clause", debug=True)
+    #         self.terminal_logger.trace("send_clause", debug=True)
     #         self.current_output = []
     #     self.append(um)
 

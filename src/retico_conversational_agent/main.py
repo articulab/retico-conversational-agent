@@ -94,13 +94,13 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             filter_cases,
             cases=[
                 # [("debug", [True])],
-                # [("module", ["TTS DM Module"])],
+                [("module", ["TTS DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("level", ["debug", "warning", "error"])],
+                [("level", ["debug", "info", "warning", "error"])],
                 [("level", ["warning", "error", "exception", "critical"])],
             ],
             # cases=[
@@ -110,7 +110,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
+    terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters=filters)
 
     # configure plot
     # configurate_plot(

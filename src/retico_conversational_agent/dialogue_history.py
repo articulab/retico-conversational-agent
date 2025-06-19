@@ -277,7 +277,7 @@ class DialogueHistory:
         # decode
         new_agent_sentence = new_agent_sentence.decode("utf-8")
 
-        self.terminal_logger.info(
+        self.terminal_logger.trace(
             "DH interruption alignement func",
             utterance=utterance,
             new_agent_sentence=new_agent_sentence,

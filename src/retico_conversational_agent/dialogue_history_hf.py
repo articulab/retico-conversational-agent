@@ -100,7 +100,7 @@ class DialogueHistoryHf:
                 self.initial_system_prompt = initial_dh[0]["content"]
                 self.current_system_prompt = initial_dh[0]["content"]
         else:
-            self.terminal_logger.info("initial system prompt")
+            self.terminal_logger.trace("initial system prompt")
             self.initial_system_prompt = initial_system_prompt
             self.current_system_prompt = initial_system_prompt
             self.dialogue_history = [
