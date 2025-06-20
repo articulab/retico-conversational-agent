@@ -413,9 +413,9 @@ class DialogueManagerModule(retico_core.AbstractModule):
             return False
         _n_audio_chunks = int(_n_audio_chunks)
         speech_counter = sum(1 for iu in self.current_input[-_n_audio_chunks:] if condition(iu))
-        # self.terminal_logger.trace(
+        # self.terminal_logger.debug(
         #     "speech counter ",
-        #     debug=True,
+        #     cl="trace",
         #     cpt=speech_counter,
         #     len=_n_audio_chunks,
         #     percent=100 * speech_counter / _n_audio_chunks,
@@ -475,7 +475,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
         Args:
             event (str): event description
         """
-        self.terminal_logger.info(f"event = {event}", debug=True, turn_id=self.turn_id)
+        self.terminal_logger.info(f"event = {event}", cl="trace", turn_id=self.turn_id)
         # output_iu = self.create_iu(event=event, turn_id=self.turn_id)
         output_iu = DMIU(
             creator=self,
@@ -493,7 +493,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
         Args:
             action (str): action description
         """
-        self.terminal_logger.info(f"action = {action}", debug=True, turn_id=self.turn_id)
+        self.terminal_logger.info(f"action = {action}", cl="trace", turn_id=self.turn_id)
         self.file_logger.info(action)
         # output_iu = self.create_iu(action=action, turn_id=self.turn_id)
         output_iu = DMIU(
@@ -570,7 +570,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
         if source_state != destination_state:
             self.terminal_logger.info(
                 f"switch state {source_state} -> {destination_state}",
-                debug=True,
+                cl="trace",
                 turn_id=self.turn_id,
             )
         if source_state in self.policies:
@@ -589,9 +589,9 @@ class DialogueManagerModule(retico_core.AbstractModule):
     def check_turn_beginning_timer(self, duration_threshold=0.5):
         # if it is the beginning of the turn, set_overlap_timer
         if self.turn_beginning_timer + duration_threshold >= time.time():
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "it is the beginning of the turn, set_overlap_timer",
-                debug=True,
+                cl="trace",
             )
             self.set_overlap_timer()
             self.turn_beginning_timer = -float("inf")
@@ -608,14 +608,14 @@ class DialogueManagerModule(retico_core.AbstractModule):
             duration_threshold (int, optional): _description_. Defaults to 1.
             source_state (_type_, optional): _description_. Defaults to None.
         """
-        self.terminal_logger.trace(
+        self.terminal_logger.debug(
             f"overlap duration = {time.time() - self.overlap_timer}",
-            debug=True,
+            cl="trace",
         )
         if self.overlap_timer + duration_threshold >= time.time():
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "overlap failed because both user and agent stopped talking, send repeat action to speaker module:",
-                debug=True,
+                cl="trace",
             )
             self.send_action("continue")
             self.overlap_timer = -float("inf")
@@ -646,9 +646,9 @@ class DialogueManagerModule(retico_core.AbstractModule):
         """
         if self.repeat_timer < time.time():
             self.increment_turn_id()
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "repeat timer exceeded, send repeat action :",
-                debug=True,
+                cl="trace",
                 turn_id=self.turn_id,
             )
 
@@ -761,7 +761,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
 
             elif self.dialogue_state == "silence_after_agent":
                 user_BOT = self.recognize_user_bot()
-                # self.terminal_logger.trace("recognize_user_bot", debug=True, user_BOT=user_BOT)
+                # self.terminal_logger.debug("recognize_user_bot", cl="trace", user_BOT=user_BOT)
                 agent_BOT = self.recognize_agent_bot()
                 if user_BOT:
                     if agent_BOT:
@@ -1108,7 +1108,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
     def log_transi(self, source, dest):
         self.terminal_logger.info(
             f"switch state {source} -> {dest}",
-            debug=True,
+            cl="trace",
             turn_id=self.turn_id,
         )
 
@@ -1349,7 +1349,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         Args:
             event (str): event description
         """
-        self.terminal_logger.info(f"event = {event}", debug=True, turn_id=self.turn_id)
+        self.terminal_logger.info(f"event = {event}", cl="trace", turn_id=self.turn_id)
         # output_iu = self.create_iu(event=event, turn_id=self.turn_id)
         output_iu = DMIU(
             creator=self,
@@ -1367,7 +1367,7 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         Args:
             action (str): action description
         """
-        self.terminal_logger.info(f"action = {action}", debug=True, turn_id=self.turn_id)
+        self.terminal_logger.info(f"action = {action}", cl="trace", turn_id=self.turn_id)
         self.file_logger.info(action)
         # output_iu = self.create_iu(action=action, turn_id=self.turn_id)
         output_iu = DMIU(
@@ -1437,9 +1437,9 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
     def check_turn_beginning_timer(self, duration_threshold=0.5):
         # if it is the beginning of the turn, set_overlap_timer
         if self.turn_beginning_timer + duration_threshold >= time.time():
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "it is the beginning of the turn, set_overlap_timer",
-                debug=True,
+                cl="trace",
             )
             self.set_overlap_timer()
             self.turn_beginning_timer = -float("inf")
@@ -1448,14 +1448,14 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
         self.overlap_timer = time.time()
 
     def check_overlap_timer(self, duration_threshold=1, source_state=None):
-        self.terminal_logger.trace(
+        self.terminal_logger.debug(
             f"overlap duration = {time.time() - self.overlap_timer}",
-            debug=True,
+            cl="trace",
         )
         if self.overlap_timer + duration_threshold >= time.time():
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "overlap failed because both user and agent stopped talking, send repeat action to speaker module:",
-                debug=True,
+                cl="trace",
             )
             self.send_action("continue")
             self.overlap_timer = -float("inf")
@@ -1476,9 +1476,9 @@ class DialogueManagerModule_2(retico_core.AbstractModule):
     def check_repeat_timer(self):
         if self.repeat_timer < time.time():
             self.increment_turn_id()
-            self.terminal_logger.trace(
+            self.terminal_logger.debug(
                 "repeat timer exceeded, send repeat action :",
-                debug=True,
+                cl="trace",
                 turn_id=self.turn_id,
             )
 

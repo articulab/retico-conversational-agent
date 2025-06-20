@@ -235,8 +235,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     # running system
     try:
         network.run(mic)
-        # terminal_logger.info("Dialog system running until ENTER key is pressed")
-        print("Dialog system running until ENTER key is pressed")
+        terminal_logger.info("Dialog system running until ENTER key is pressed")
         input()
         network.stop(mic)
     except Exception:

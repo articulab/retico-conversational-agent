@@ -141,7 +141,7 @@ class AsrDmModule(retico_core.AbstractModule):
                     raise ValueError("input framerate differs from iu framerate")
                 # ADD corresponds to new audio chunks of user sentence, to generate new transcription hypothesis
                 if ut == retico_core.UpdateType.COMMIT:
-                    self.terminal_logger.trace("start_process")
+                    self.terminal_logger.debug("start_process", cl="trace")
                     self.file_logger.info("start_process")
                     eos = True
                     self.audio_buffer.append(iu.raw_audio)

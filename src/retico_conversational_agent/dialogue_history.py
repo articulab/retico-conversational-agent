@@ -185,7 +185,8 @@ class DialogueHistory:
         self.dialogue_history.append(utterance)
         c = self.prompt_format_config
         s = utterance["role"]
-        print(f"\n{c[s]['role']} {c[s]['role_sep']} {utterance['content']}")
+        # print(f"\n{c[s]['role']} {c[s]['role_sep']} {utterance['content']}")
+        self.terminal_logger.debug("append utterance to DH", role=c[s]["role"], content=utterance["role"], cl="trace")
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
@@ -277,18 +278,19 @@ class DialogueHistory:
         # decode
         new_agent_sentence = new_agent_sentence.decode("utf-8")
 
-        self.terminal_logger.trace(
+        self.terminal_logger.debug(
             "DH interruption alignement func",
+            cl="trace",
             utterance=utterance,
             new_agent_sentence=new_agent_sentence,
-            debug=True,
         )
 
         # store the new sentence in the dialogue history
         utterance["content"] = new_agent_sentence
         self.append_utterance(utterance)
 
-        print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
+        self.terminal_logger.info(f"""INTERRUPTED AGENT SENTENCE : "{new_agent_sentence}" """)
+        # print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
 
     # Getters
 

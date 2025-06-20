@@ -180,7 +180,8 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
                 )
                 words_durations = words_durations_in_nb_frames
         except Exception as e:
-            log_exception(module=self, exception=e)
+            # log_exception(module=self, exception=e)
+            print("exception", e)
 
         return audio_data, words_durations
 
@@ -367,26 +368,27 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                 if ut == retico_core.UpdateType.ADD:
                     if iu.action == "hard_interruption":
                         self.file_logger.info("hard_interruption")
-                        self.terminal_logger.info("hard_interruption")
+                        self.terminal_logger.debug("hard_interruption", cl="trace")
                         self.interrupted_turn = self.current_turn_id
                         self.first_incremental_chunk = True
                         self.current_input = []
                     elif iu.action == "soft_interruption":
                         self.file_logger.info("soft_interruption")
                     elif iu.action == "stop_turn_id":
-                        self.terminal_logger.info(
+                        self.terminal_logger.debug(
                             "STOP TURN ID",
+                            cl="trace",
                             iu_turn=iu.turn_id,
                             curr=self.current_turn_id,
                         )
                         self.file_logger.info("stop_turn_id")
-                        self.terminal_logger.info("stop_turn_id")
+                        self.terminal_logger.debug("stop_turn_id", cl="trace")
                         if iu.turn_id > self.current_turn_id:
                             self.interrupted_turn = self.current_turn_id
                         self.first_incremental_chunk = True
                         self.current_input = []
                     elif iu.action == "back_channel":
-                        self.terminal_logger.info("TTS BC")
+                        self.terminal_logger.debug("TTS BC", cl="trace")
                         self.backchannel = self.bc_text[random.randint(0, 5)]
                     if iu.event == "user_BOT_same_turn":
                         self.interrupted_turn = None
@@ -413,8 +415,9 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                     end_of_turn = incremental_chunk_ius[-1].final
                     um = retico_core.UpdateMessage()
                     if end_of_turn:
-                        self.terminal_logger.info(
+                        self.terminal_logger.debug(
                             "EOT TTS",
+                            cl="trace",
                             end_of_turn=end_of_turn,
                             incremental_chunk_ius=incremental_chunk_ius,
                             len_incremental_chunk_iuss=len(incremental_chunk_ius),
@@ -429,7 +432,7 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                         )
                     else:
                         if self.first_incremental_chunk:
-                            self.terminal_logger.info("start_answer_generation")
+                            self.terminal_logger.debug("start_answer_generation", cl="trace")
                             self.file_logger.info("start_answer_generation")
                             self.first_incremental_chunk = False
                         self.current_turn_id = incremental_chunk_ius[-1].turn_id
@@ -437,14 +440,14 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                         output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius_sentence(incremental_chunk_ius)
                         um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
                         self.file_logger.debug(f"send_{self.incrementality_level}")
-                        self.terminal_logger.debug(f"send_{self.incrementality_level}")
+                        self.terminal_logger.debug(f"send_{self.incrementality_level}", cl="trace")
                     self.append(um)
                 elif self.backchannel is not None:
                     um = retico_core.UpdateMessage()
                     output_ius = self.get_ius_backchannel()
                     um.add_ius([(iu, retico_core.UpdateType.ADD) for iu in output_ius])
                     self.append(um)
-                    self.terminal_logger.debug("TTS BC send_backchannel")
+                    self.terminal_logger.debug("TTS BC send_backchannel", cl="trace")
                     self.file_logger.debug("send_backchannel")
                     self.backchannel = None
             except Exception as e:
@@ -502,8 +505,12 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
         audio_data, words_durations = self.subclass.produce(current_text)
         self.file_logger.info("after_produce")
 
-        self.terminal_logger.info(
-            "words_durations", words_durations=words_durations, len_word_dur=len(words_durations), len_words=len(words)
+        self.terminal_logger.debug(
+            "words_durations",
+            cl="trace",
+            words_durations=words_durations,
+            len_word_dur=len(words_durations),
+            len_words=len(words),
         )
 
         # Check that input words matches synthesized audio
@@ -562,8 +569,8 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
     #                 )
     #             else:
     #                 pre_pro_words_distinct.append(words[: pre_pro_words[-1] + 1])
-    #     self.terminal_logger.info(pre_pro_words, debug=True)
-    #     self.terminal_logger.info(pre_pro_words_distinct, debug=True)
+    #     self.terminal_logger.debug(pre_pro_words,cl="trace")
+    #     self.terminal_logger.debug(pre_pro_words_distinct, cl="trace")
     #     pre_pro_words.pop(0)
     #     pre_pro_words_distinct.pop(0)
     #     pre_pro_words.append(len(words) - 1)
@@ -571,8 +578,8 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
     #     log_exception(self, e)
     #     raise IndexError from e
 
-    # self.terminal_logger.info(pre_pro_words, debug=True)
-    # self.terminal_logger.info(pre_pro_words_distinct, debug=True)
+    # self.terminal_logger.debug(pre_pro_words, cl="trace")
+    # self.terminal_logger.debug(pre_pro_words_distinct, cl="trace")
 
     # if len(pre_pro_words) >= 2:
     #     pre_pro_words_distinct.append(

@@ -87,7 +87,7 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
     destination_remote_dm_out = "/topic/remote_dm_out"
     destination_remote_tts_out = "/topic/remote_tts_out"
     ip = "localhost"
-    print(f"IP = {ip}")
+    # print(f"IP = {ip}")
     port = "61613"
 
     # filters
@@ -230,7 +230,7 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
     # running system
     try:
         network.run(vad)
-        print("Dialog system running until ENTER key is pressed")
+        terminal_logger.info("Dialog system running until ENTER key is pressed")
         input()
         network.stop(vad)
     except Exception:
@@ -326,7 +326,7 @@ def main_DM_remote_computing_local(wozmic: bool):
     # running system
     try:
         network.run(mic)
-        print("Dialog system running until ENTER key is pressed")
+        terminal_logger.info("Dialog system running until ENTER key is pressed")
         input()
         network.stop(mic)
     except Exception:
