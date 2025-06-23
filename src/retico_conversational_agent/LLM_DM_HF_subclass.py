@@ -523,11 +523,13 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
         )
 
     def new_user_sentence(self):
+        s = " ".join([iu.payload for iu in self.current_input])
+        self.terminal_logger.info(f"User:\n{s}")
         self.dialogue_history.append_utterance(
             {
                 "turn_id": self.current_input[-1].turn_id,
                 "role": "user",
-                "content": " ".join([iu.payload for iu in self.current_input]),
+                "content": s,
             }
         )
 
