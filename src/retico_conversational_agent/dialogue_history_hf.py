@@ -128,7 +128,6 @@ class DialogueHistoryHf:
             "append utterance to DH", role=utterance["role"], content=utterance["role"], cl="trace"
         )
         # print(f"\n{utterance['role']} : {utterance['content']}")
-        time.sleep(5)
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
