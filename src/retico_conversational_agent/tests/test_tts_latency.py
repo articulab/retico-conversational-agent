@@ -18,6 +18,14 @@ if __name__ == "__main__":
             # model_name="tts_models/en/jenny/jenny",
             model_name="jenny",
         ),
+        "glow": partial(
+            agent.TTS_DM_subclass.CoquiTTSSubclass,
+            model_name="glow",
+        ),
+        "your_tts": partial(
+            agent.TTS_DM_subclass.CoquiTTSSubclass,
+            model_name="your_tts",
+        ),
     }
 
     parser = argparse.ArgumentParser()
@@ -35,6 +43,13 @@ if __name__ == "__main__":
         help="The speaker id to pick.",
         type=str,
         default="Gitta Nikolina",
+    )
+    parser.add_argument(
+        "--speaker-wav",
+        "-sw",
+        help="The speaker wav to pick.",
+        type=str,
+        default="voices_different_tts/xtts/Uta_Obando/splitted_sentences/sentence_2/full_sentence.wav",
     )
     args = parser.parse_args()
 
@@ -67,6 +82,7 @@ if __name__ == "__main__":
         verbose=verbose,
         language="en",
         speaker_id=args.speaker_id,
+        speaker_wav=args.speaker_wav,
     )
     tts.setup()
 
@@ -124,8 +140,9 @@ if __name__ == "__main__":
             tts.produce(current_text=text)
             end_time = datetime.now()
             duration = end_time - start_time
-            print(f"duration = {duration.total_seconds()}")
-            durations.append(duration)
+            duration_in_seconds = duration.total_seconds()
+            print(f"duration = {duration_in_seconds}")
+            durations.append(duration_in_seconds)
             words = text.split(" ")
             nb_words.append(len(words))
             text_types.append(text_type)

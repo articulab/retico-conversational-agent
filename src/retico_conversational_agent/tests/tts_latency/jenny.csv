@@ -1,24 +1,24 @@
 ,duration,nb_words,text_type
-0,0 days 00:00:00.121984,4,sentences
-1,0 days 00:00:00.157768,10,sentences
-2,0 days 00:00:00.302287,26,sentences
-3,0 days 00:00:00.257796,15,sentences
-4,0 days 00:00:00.387974,24,sentences
-5,0 days 00:00:00.218088,1,clauses
-6,0 days 00:00:00.084092,1,clauses
-7,0 days 00:00:00.084946,1,clauses
-8,0 days 00:00:00.058899,1,clauses
-9,0 days 00:00:00.089276,1,clauses
-10,0 days 00:00:00.088028,1,clauses
-11,0 days 00:00:00.087751,1,clauses
-12,0 days 00:00:00.059569,1,clauses
-13,0 days 00:00:00.085994,1,clauses
-14,0 days 00:00:00.082245,1,clauses
-15,0 days 00:00:00.073991,1,clauses
-16,0 days 00:00:00.078318,1,clauses
-17,0 days 00:00:00.073992,1,clauses
-18,0 days 00:00:00.092760,1,clauses
-19,0 days 00:00:00.093585,1,clauses
-20,0 days 00:00:00.089496,3,clauses
-21,0 days 00:00:00.088314,7,clauses
-22,0 days 00:00:00.077300,3,clauses
+0,0.114123,4,sentences
+1,0.152704,10,sentences
+2,0.322721,26,sentences
+3,0.260423,15,sentences
+4,0.372047,24,sentences
+5,0.219388,1,clauses
+6,0.08837,1,clauses
+7,0.082271,1,clauses
+8,0.081442,1,clauses
+9,0.091802,1,clauses
+10,0.082,1,clauses
+11,0.098826,1,clauses
+12,0.081046,1,clauses
+13,0.082338,1,clauses
+14,0.059885,1,clauses
+15,0.082132,1,clauses
+16,0.070538,1,clauses
+17,0.065708,1,clauses
+18,0.091707,1,clauses
+19,0.061103,1,clauses
+20,0.081882,3,clauses
+21,0.091404,7,clauses
+22,0.071389,3,clauses

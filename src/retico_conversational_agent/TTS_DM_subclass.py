@@ -87,6 +87,7 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
         "vits": "tts_models/en/ljspeech/vits",
         "vits_neon": "tts_models/en/ljspeech/vits--neon",
         "vits_vctk": "tts_models/en/vctk/vits",
+        "glow": "tts_models/en/ljspeech/glow-tts",
     }
 
     def __init__(
@@ -153,12 +154,16 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
             # tokens = self.model.synthesizer.tts_model.tokenizer.tokenizer.text_to_ids(current_text)
         else:
             tokens = self.model.synthesizer.tts_model.tokenizer.text_to_ids(current_text)
+
         audio_data = outputs[0]["wav"]
-        len_wav = len(audio_data)
+        if audio_data is None:
+            audio_data = new_audio
 
         # retrieve word_duration
         try:
             if self.model_name == "tts_models/en/jenny/jenny":
+
+                len_wav = len(audio_data)
                 durations = outputs[0]["outputs"]["durations"].squeeze().tolist()
                 total_duration = int(sum(durations))
                 nb_fram_per_dur = len_wav / total_duration
@@ -179,6 +184,8 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
                     alignment_required_data
                 )
                 words_durations = words_durations_in_nb_frames
+            else:
+                words_durations = None
         except Exception as e:
             # log_exception(module=self, exception=e)
             print("exception", e)
@@ -201,7 +208,7 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
                 text=text,
                 language=self.language,
                 speaker=self.speaker_id,
-                speaker_wav=None if self.speaker_id is None else self.speaker_wav,
+                speaker_wav=self.speaker_wav if self.speaker_id is None else None,
                 return_extra_outputs=True,
                 split_sentences=False,
                 verbose=self.verbose,
