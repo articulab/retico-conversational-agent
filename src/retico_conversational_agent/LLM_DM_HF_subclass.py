@@ -840,7 +840,7 @@ class LlmDmModuleHfSubclass(retico_core.AbstractModule):
                 time.sleep(0.01)
                 if self.full_sentence:
                     self.terminal_logger.debug("start_answer_generation", cl="trace")
-                    self.file_logger.info("start_answer_generation")
+                    self.file_logger.info("start_answer_generation", last_iu_iuid=self.current_input._msgs[-1][0].iuid)
                     self.process_incremental()
                     self.file_logger.info("EOT")
                     self.full_sentence = False

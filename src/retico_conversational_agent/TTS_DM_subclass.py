@@ -178,7 +178,7 @@ class CoquiTTSSubclass(AbstractTTSSubclass):
                     # words_durations.append(int(sum(durations[old_len_w:s_id])) * NB_FRAME_PER_DURATION)
                     words_durations.append(int(sum(durations[old_len_w:s_id]) * nb_fram_per_dur))
                     old_len_w = s_id
-            if self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
+            elif self.model_name == "tts_models/multilingual/multi-dataset/xtts_v2":
                 alignment_required_data = outputs[0]["alignment_required_data"]
                 words_durations_in_nb_frames, words_durations_in_sec, alignments = get_words_durations_from_xtts_output(
                     alignment_required_data
@@ -440,7 +440,9 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                     else:
                         if self.first_incremental_chunk:
                             self.terminal_logger.debug("start_answer_generation", cl="trace")
-                            self.file_logger.info("start_answer_generation")
+                            self.file_logger.info(
+                                "start_answer_generation", last_iu_iuid=incremental_chunk_ius._msgs[-1][0].iuid
+                            )
                             self.first_incremental_chunk = False
                         self.current_turn_id = incremental_chunk_ius[-1].turn_id
                         # output_ius = self.get_new_iu_buffer_from_incremental_chunk_ius(clause_ius)

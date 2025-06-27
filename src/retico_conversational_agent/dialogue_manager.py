@@ -117,6 +117,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                     partial(self.send_event, "user_EOT"),
                     partial(self.send_action, action="start_answer_generation"),
                     partial(self.send_audio_ius, final=True),
+                    partial(self.file_logger.info, "send_clause"),
                 ],
             },
             "agent_speaking": {
@@ -626,6 +627,7 @@ class DialogueManagerModule(retico_core.AbstractModule):
                 self.send_action(action="stop_turn_id")
                 self.send_action(action="start_answer_generation")
                 self.send_audio_ius(final=True)
+                self.file_logger.info("send_clause")
 
     def set_repeat_timer(self, offset=3):
         """sets the repeat timer to current time + an offset of n seconds
