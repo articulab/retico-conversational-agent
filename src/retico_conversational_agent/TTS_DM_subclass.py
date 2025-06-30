@@ -441,7 +441,7 @@ class TtsDmModuleSubclass(retico_core.AbstractModule):
                         if self.first_incremental_chunk:
                             self.terminal_logger.debug("start_answer_generation", cl="trace")
                             self.file_logger.info(
-                                "start_answer_generation", last_iu_iuid=incremental_chunk_ius._msgs[-1][0].iuid
+                                "start_answer_generation", last_iu_iuid=incremental_chunk_ius[-1].iuid
                             )
                             self.first_incremental_chunk = False
                         self.current_turn_id = incremental_chunk_ius[-1].turn_id
