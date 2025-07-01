@@ -95,6 +95,7 @@ class VadModule(retico_core.AbstractModule):
         self.sample_width = sample_width
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.VA_agent = False
+        self.previous_event = None
 
     def process_update(self, update_message):
         """Receives SpeakerAlignementIU and AudioIU, use the first one to set the
@@ -157,3 +158,6 @@ class VadModule(retico_core.AbstractModule):
                         else:
                             event = "VA_silence"
                     self.file_logger.info(event)
+                    if event != self.previous_event:
+                        self.file_logger.info("VA_switch", previous_va=self.previous_event, current_va=event)
+                    self.previous_event = event
