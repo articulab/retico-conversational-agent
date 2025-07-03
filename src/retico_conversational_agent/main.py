@@ -15,7 +15,7 @@ from retico_core.log_utils import (
 )
 from retico_core.audio import MicrophonePTTModule
 
-from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule3
 
 import retico_conversational_agent as agent
 from retico_conversational_agent.main_remote_computing import (
@@ -100,8 +100,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("level", ["debug", "warning", "error"])],
-                [("level", ["warning", "error", "exception", "critical"])],
+                [("level", ["debug", "info", "warning", "error", "exception", "critical"])],
             ],
             # cases=[
             #     [("module", ["DialogueManager Module"])],
@@ -110,7 +109,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
         )
     ]
     # configurate logger
-    terminal_logger, file_logger = retico_core.log_utils.configurate_logger()
+    terminal_logger, file_logger = retico_core.log_utils.configurate_logger(filters=filters)
 
     # configure plot
     # configurate_plot(
@@ -122,7 +121,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
 
     # create modules
     if wozmic:
-        mic = WOZMicrophoneModule(frame_length=frame_length)
+        # mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
+        mic = WOZMicrophoneModule3(frame_length=frame_length, rate=rate)
     else:
         # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
         # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
@@ -235,8 +235,7 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
     # running system
     try:
         network.run(mic)
-        # terminal_logger.info("Dialog system running until ENTER key is pressed")
-        print("Dialog system running until ENTER key is pressed")
+        terminal_logger.info("Dialog system running until ENTER key is pressed")
         input()
         network.stop(mic)
     except Exception:

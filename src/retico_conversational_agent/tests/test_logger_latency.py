@@ -114,7 +114,7 @@ class TerminalLogger(structlog.BoundLogger):
             terminal_logger = structlog.get_logger("terminal")
 
             # log info to cache the logger, using the config's cache_logger_on_first_use parameter
-            terminal_logger.info("init terminal logger", debug=True)
+            terminal_logger.info("init terminal logger", cl="trace")
 
             # set the singleton instance
             cls.instance = terminal_logger
@@ -189,7 +189,7 @@ def configurate_logger(log_path="logs/run", filters=None, f=None):
     """
     log_path = create_new_log_folder(log_path)
     terminal_logger = TerminalLogger(filters=filters)
-    terminal_logger.info("test", debug=True)
+    terminal_logger.info("test", cl="trace")
     file_logger = FileLogger(log_path, filters=f)
     return terminal_logger, file_logger
 

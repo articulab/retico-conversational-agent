@@ -142,7 +142,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                     if iu.action == "soft_interruption":
                         # self.terminal_logger.info(
                         #     "soft_interruption",
-                        #     debug=True,
+                        #     cl="trace",
                         #     grounded_word=self.latest_processed_iu.grounded_word,
                         #     word_id=self.latest_processed_iu.word_id,
                         #     char_id=self.latest_processed_iu.char_id,
@@ -199,7 +199,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                             # self.terminal_logger.info("speaker interruption but no outputted audio yet")
                             self.file_logger.info("speaker interruption but no outputted audio yet")
                     elif iu.action == "repeat_last_turn":
-                        # self.terminal_logger.info("repeat ius received", debug=True)
+                        # self.terminal_logger.info("repeat ius received", cl="trace")
                         self.audio_iu_buffer.append(iu)
 
                     elif iu.event == "user_BOT_same_turn":
@@ -215,7 +215,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
                     elif self.soft_interrupted_iu is not None:
                         # self.terminal_logger.info(
                         #     "IU received during soft interruption",
-                        #     debug=True,
+                        #     cl="trace",
                         #     soft_inter_iu_turn=self.soft_interrupted_iu.turn_id,
                         #     TTS_iu_turn=iu.turn_id,
                         #     iu_final=iu.final,
@@ -261,7 +261,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
         iu = self.audio_iu_buffer.pop(0)
         # if it is the last IU from TTS for this agent turn, which corresponds to an agent EOT.
         if hasattr(iu, "final") and iu.final:
-            # self.terminal_logger.info("agent_EOT", debug=True)
+            # self.terminal_logger.info("agent_EOT", cl="trace")
             self.file_logger.info("EOT")
             output_iu = self.create_iu(
                 grounded_word=iu.grounded_word,
@@ -280,7 +280,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
             silence_bytes = b"\x00" * frame_count * self.channels * self.sample_width
             return (silence_bytes, pyaudio.paContinue)
         else:
-            # self.terminal_logger.info("SPEAKER DM output", debug=True)
+            # self.terminal_logger.info("SPEAKER DM output", cl="trace")
             # if it is the first IU from new agent turn, which corresponds to the official agent BOT
             if self.latest_processed_iu is None or (
                 self.latest_processed_iu.turn_id is not None
@@ -303,7 +303,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
 
             data = bytes(iu.raw_audio)
 
-            # self.terminal_logger.info("output_audio", debug=True)
+            # self.terminal_logger.info("output_audio", cl="trace")
             self.file_logger.info("output_audio")
 
             self.latest_processed_iu = iu
@@ -354,7 +354,7 @@ class SpeakerDmModule(retico_core.abstract.AbstractModule):
         )
 
         self.stream.start_stream()
-        self.terminal_logger.info("end prepare_run")
+        self.terminal_logger.debug("end prepare_run", cl="trace")
 
     def shutdown(self):
         """Close the audio stream."""

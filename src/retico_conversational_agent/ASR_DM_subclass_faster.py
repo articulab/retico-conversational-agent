@@ -99,7 +99,7 @@ class WhisperASRSubclass(AbstractASRSubclass):
         return transcription
 
 
-class AsrDmModuleSubclass(retico_core.AbstractModule):
+class AsrDmModuleSubclassFaster(retico_core.AbstractModule):
     """A retico module that provides Automatic Speech Recognition (ASR) using a
     OpenAI's Whisper model. Periodically predicts a new text hypothesis from
     the input incremental speech and predicts a final hypothesis when it is the
@@ -156,9 +156,11 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
 
         self._asr_thread_active = False
         self.latest_input_iu = None
-        self.eos = False
         self.audio_buffer = []
         self.input_framerate = input_framerate
+        self.send_transcription = False
+        self.process_audio = False
+        self.transcription_um = None
 
     def process_update(self, update_message):
         """Receives and stores the audio from the DMIUs in the
@@ -169,21 +171,23 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
                 IUs, if their UpdateType is ADD, they are added to the
                 audio_buffer.
         """
-        eos = False
+        process_audio = False
         for iu, ut in update_message:
             if iu.action == "process_audio":
                 if self.input_framerate != iu.rate:
                     raise ValueError("input_framerate differs from iu input_framerate")
                 # ADD corresponds to new audio chunks of user sentence, to generate new transcription hypothesis
-                if ut == retico_core.UpdateType.COMMIT:
-                    eos = True
+                if ut == retico_core.UpdateType.COMMIT or ut == retico_core.UpdateType.ADD:
+                    process_audio = True
                     self.audio_buffer.append(iu.raw_audio)
                     if not self.latest_input_iu:
                         self.latest_input_iu = iu
-        if eos:
+            elif iu.action == "send_transcription":
+                self.send_transcription = True
+        if process_audio:
             self.terminal_logger.debug("start_answer_generation", cl="trace")
             self.file_logger.info("start_answer_generation", last_iu_iuid=update_message._msgs[-1][0].iuid)
-            self.eos = eos
+            self.process_audio = process_audio
 
     def _asr_thread(self):
         """Function used as a thread in the prepare_run function. Handles the
@@ -195,34 +199,47 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
         """
         while self._asr_thread_active:
             try:
-                time.sleep(0.01)
-                if not self.eos:
-                    continue
+                if self.process_audio:
+                    self.file_logger.info("before predict")
+                    self.terminal_logger.debug("process_audio")
+                    full_audio = b"".join(self.audio_buffer)
+                    prediction = self.subclass.produce(full_audio)
+                    self.file_logger.info("after predict")
+                    if len(prediction) != 0:
+                        um, new_tokens = retico_core.text.get_text_increment(self, prediction)
+                        for i, token in enumerate(new_tokens):
+                            output_iu = self.create_iu(
+                                grounded_in=self.latest_input_iu,
+                                predictions=[prediction],
+                                text=token,
+                                stability=0.0,
+                                confidence=0.99,
+                                final=self.process_audio and (i == (len(new_tokens) - 1)),
+                                # final=True,
+                                turn_id=self.latest_input_iu.turn_id,
+                            )
+                            um.add_iu(output_iu, retico_core.UpdateType.ADD)
 
-                full_audio = b"".join(self.audio_buffer)
-                prediction = self.subclass.produce(full_audio)
-                self.file_logger.info("predict")
-                if len(prediction) != 0:
-                    um, new_tokens = retico_core.text.get_text_increment(self, prediction)
-                    for i, token in enumerate(new_tokens):
-                        output_iu = self.create_iu(
-                            grounded_in=self.latest_input_iu,
-                            predictions=[prediction],
-                            text=token,
-                            stability=0.0,
-                            confidence=0.99,
-                            final=self.eos and (i == (len(new_tokens) - 1)),
-                            turn_id=self.latest_input_iu.turn_id,
-                        )
-                        um.add_iu(output_iu, retico_core.UpdateType.ADD)
-                        self.commit(output_iu)
-                        um.add_iu(output_iu, retico_core.UpdateType.COMMIT)
+                            um.add_iu(output_iu, retico_core.UpdateType.COMMIT)
+                            self.transcription_um = um
+                            self.process_audio = False
+                            self.terminal_logger.debug("end process_audio")
 
+                elif self.send_transcription:
+                    self.terminal_logger.debug("send_transcription")
+                    self.append(self.transcription_um)
+                    for iu, ut in self.transcription_um:
+                        self.commit(iu)
                     self.audio_buffer = []
-                    self.eos = False
+                    self.send_transcription = False
                     self.latest_input_iu = None
+                    self.transcription_um = None
+                    self.terminal_logger.debug("end send_transcription")
                     self.file_logger.info("send_clause")
-                    self.append(um)
+
+                else:
+                    time.sleep(0.01)
+
             except Exception as e:
                 log_exception(module=self, exception=e)
 

@@ -95,6 +95,7 @@ class VadModule(retico_core.AbstractModule):
         self.sample_width = sample_width
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.VA_agent = False
+        self.previous_event = None
 
     def process_update(self, update_message):
         """Receives SpeakerAlignementIU and AudioIU, use the first one to set the
@@ -123,8 +124,8 @@ class VadModule(retico_core.AbstractModule):
                         self.VA_agent = True
             elif isinstance(iu, retico_core.audio.AudioIU):
                 if ut == retico_core.UpdateType.ADD:
-                    # self.terminal_logger.info(
-                    #     "rates", input=self.input_framerate, iu=iu.rate, target=self.target_framerate, debug=True
+                    # self.terminal_logger.debug(
+                    #     "rates", cl="trace",input=self.input_framerate, iu=iu.rate, target=self.target_framerate, cl="trace"
                     # )
                     if self.input_framerate != iu.rate:
                         raise ValueError(
@@ -132,7 +133,7 @@ class VadModule(retico_core.AbstractModule):
                         )
                     raw_audio = resample_audio(iu.raw_audio, iu.rate, self.target_framerate)
                     VA_user = self.vad.is_speech(raw_audio, self.target_framerate)
-                    # self.terminal_logger.info("received audio IU", VA_user=VA_user, debug=True)
+                    # self.terminal_logger.debug("received audio IU", cl="trace",VA_user=VA_user, cl="trace")
                     output_iu = self.create_iu(
                         grounded_in=iu,
                         raw_audio=raw_audio,
@@ -157,3 +158,6 @@ class VadModule(retico_core.AbstractModule):
                         else:
                             event = "VA_silence"
                     self.file_logger.info(event)
+                    if event != self.previous_event:
+                        self.file_logger.info("VA_switch", previous_va=self.previous_event, current_va=event)
+                    self.previous_event = event

@@ -53,18 +53,28 @@ def concatenate_audio_wave(audio_clip_paths, output_path):
     output.close()
 
 
-def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_str):
-    speaker_path = speaker_id.replace(" ", "_")
+def generate_audio_splitted_sentences(
+    model, speaker_id, speaker_wav, sentences, punctuation_str, language, model_name="xtts"
+):
+    if speaker_id is None:
+        speaker_path = ""
+    else:
+        speaker_path = speaker_id.replace(" ", "_") + "/"
+
     for i, sentence in enumerate(sentences):
         # generate audio for the full sentence
-        file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/full_sentence.wav"
+        file_path = f"voices_different_tts/{model_name}/{speaker_path}splitted_sentences/sentence_{i}/full_sentence.wav"
         folder_path = "/".join(file_path.split("/")[:-1])
         os.makedirs(folder_path, exist_ok=True)
         model.tts_to_file(
             text=sentence,
             file_path=file_path,
             speaker=speaker_id,
-            language="en",
+            speaker_wav=speaker_wav,
+            # language="en" if (speaker_id is not None and speaker_wav is None) else None,
+            # language="en",
+            # language=None,
+            language=language,
         )
 
         clauses = re.split(punctuation_str, sentence)
@@ -73,14 +83,20 @@ def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_
         # generate audio for the clauses
         clauses_paths = []
         for j, clause in enumerate(clauses):
-            file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/clause_{j}.wav"
+            file_path = (
+                f"voices_different_tts/{model_name}/{speaker_path}splitted_sentences/sentence_{i}/clause_{j}.wav"
+            )
             folder_path = "/".join(file_path.split("/")[:-1])
             os.makedirs(folder_path, exist_ok=True)
             model.tts_to_file(
                 text=clause,
                 file_path=file_path,
                 speaker=speaker_id,
-                language="en",
+                speaker_wav=speaker_wav,
+                # language="en" if (speaker_id is not None and speaker_wav is None) else None,
+                # language="en",
+                # language=None,
+                language=language,
             )
             clauses_paths.append(file_path)
             # audio, _ = retico_core.audio.load_audiofile_WAVPCM16(file_path)
@@ -88,7 +104,9 @@ def generate_audio_splitted_sentences(model, speaker_id, sentences, punctuation_
             # audio_bytes += audio
 
         # aggregate all clauses audio files into one
-        file_path = f"voices_different_tts/xtts/{speaker_path}/splitted_sentences/sentence_{i}/aggregated_clauses.wav"
+        file_path = (
+            f"voices_different_tts/{model_name}/{speaker_path}splitted_sentences/sentence_{i}/aggregated_clauses.wav"
+        )
         os.makedirs(folder_path, exist_ok=True)
         concatenate_audio_wave(clauses_paths, file_path)
         # with open(file_path, "wb") as f:
@@ -155,8 +173,17 @@ speaker_ids = [
     "Luis Moray",
     "Marcos Rudaski",
 ]
-model_name = "tts_models/multilingual/multi-dataset/xtts_v2"
+# model_name = "tts_models/multilingual/multi-dataset/xtts_v2"
 # model_name = "tts_models/en/jenny/jenny"
+model_name = "tts_models/multilingual/multi-dataset/your_tts"
+# model_name = "tts_models/en/ljspeech/vits"
+# model_name = "tts_models/en/ljspeech/vits--neon"
+# model_name = "tts_models/en/ljspeech/glow-tts"
+# model_name = "tts_models/multilingual/multi-dataset/bark"
+# model_name = "tts_models/en/vctk/fast_pitch"
+# model_name = "tts_models/en/vctk/vits"
+# model_name = "tts_models/en/multi-dataset/tortoise-v2"
+
 language = "en"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 frame_duration = 0.2
@@ -172,7 +199,15 @@ file_path = f"voices_different_tts/{model_name.split('/')[-1]}.wav"
 # speaker_id = "Gitta Nikolina"
 # speaker_id = "Daisy Studious"
 # speaker_id = "Alma María"
-speaker_id = "Uta Obando"
+# speaker_id = "Uta Obando"
+speaker_id = None
+speaker_wav = "voices_different_tts/xtts/Uta_Obando/splitted_sentences/sentence_0/full_sentence.wav"
+# speaker_wav = None
+language = "en"
+
+# speaker_id = None
+# speaker_wav = None
+# language = None
 
 
 sentences = [
@@ -184,7 +219,13 @@ punctuation = [".", ",", ";", ":", "!", "?"]
 punctuation_str = r"[.,;!?]+"
 
 generate_audio_splitted_sentences(
-    model=model, speaker_id=speaker_id, sentences=sentences, punctuation_str=punctuation_str
+    model=model,
+    speaker_id=speaker_id,
+    speaker_wav=speaker_wav,
+    sentences=sentences,
+    punctuation_str=punctuation_str,
+    model_name=model_name.split("/")[-1],
+    language=language,
 )
 # new_audio, final_outputs = synthesize(current_text)
 # final_outputs = model.tts(

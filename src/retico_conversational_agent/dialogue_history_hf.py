@@ -100,7 +100,7 @@ class DialogueHistoryHf:
                 self.initial_system_prompt = initial_dh[0]["content"]
                 self.current_system_prompt = initial_dh[0]["content"]
         else:
-            self.terminal_logger.info("initial system prompt")
+            self.terminal_logger.debug("initial system prompt", cl="trace")
             self.initial_system_prompt = initial_system_prompt
             self.current_system_prompt = initial_system_prompt
             self.dialogue_history = [
@@ -124,8 +124,10 @@ class DialogueHistoryHf:
         # insure that turn_id is not None, and increment turn_id for system that do not have a turn id cpt (like DM).
         utterance["turn_id"] = len(self.dialogue_history) if utterance["turn_id"] is None else utterance["turn_id"]
         self.dialogue_history.append(utterance)
-        print(f"\n{utterance['role']} : {utterance['content']}")
-        time.sleep(5)
+        self.terminal_logger.debug(
+            "append utterance to DH", role=utterance["role"], content=utterance["role"], cl="trace"
+        )
+        # print(f"\n{utterance['role']} : {utterance['content']}")
 
     def reset_system_prompt(self):
         """Set the system prompt to initial_system_prompt, which is the prompt
@@ -248,7 +250,8 @@ class DialogueHistoryHf:
         utterance["content"] = new_agent_sentence
         self.append_utterance(utterance)
 
-        print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
+        self.terminal_logger.info(f"""INTERRUPTED AGENT SENTENCE : "{new_agent_sentence}" """)
+        # print("INTERRUPTED AGENT SENTENCE : ", new_agent_sentence)
 
     # Getters
 

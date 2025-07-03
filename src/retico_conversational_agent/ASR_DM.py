@@ -80,7 +80,7 @@ class AsrDmModule(retico_core.AbstractModule):
         self,
         whisper_model="distil-large-v2",
         device=None,
-        framerate=16000,
+        input_framerate=16000,
         **kwargs,
     ):
         """Initializes the WhisperASRInterruption Module.
@@ -90,7 +90,7 @@ class AsrDmModule(retico_core.AbstractModule):
                 correspond to a model in the faster_whisper library.
             device (string): wether the model will be executed on cpu or
                 gpu (using "cuda").
-            framerate (int, optional): framerate of the received VADIUs.
+            input_framerate (int, optional): input_framerate of the received VADIUs.
                 Defaults to 16000.
         """
         super().__init__(**kwargs)
@@ -106,7 +106,7 @@ class AsrDmModule(retico_core.AbstractModule):
         self.audio_buffer = []
 
         # audio
-        self.framerate = framerate
+        self.input_framerate = input_framerate
 
     def recognize(self):
         """Recreate the audio signal received by the microphone by
@@ -137,11 +137,11 @@ class AsrDmModule(retico_core.AbstractModule):
         eos = False
         for iu, ut in update_message:
             if iu.action == "process_audio":
-                if self.framerate != iu.rate:
-                    raise ValueError("input framerate differs from iu framerate")
+                if self.input_framerate != iu.rate:
+                    raise ValueError("input_framerate differs from iu input_framerate")
                 # ADD corresponds to new audio chunks of user sentence, to generate new transcription hypothesis
                 if ut == retico_core.UpdateType.COMMIT:
-                    self.terminal_logger.info("start_process")
+                    self.terminal_logger.debug("start_process", cl="trace")
                     self.file_logger.info("start_process")
                     eos = True
                     self.audio_buffer.append(iu.raw_audio)
