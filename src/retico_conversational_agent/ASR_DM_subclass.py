@@ -139,7 +139,7 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
     def __init__(
         self,
         device=None,
-        framerate=16000,
+        input_framerate=16000,
         subclass: AbstractASRSubclass = WhisperASRSubclass,
         **kwargs,
     ):
@@ -148,7 +148,7 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
         Args:
             device (string): wether the model will be executed on cpu or
                 gpu (using "cuda").
-            framerate (int, optional): framerate of the received VADIUs.
+            input_framerate (int, optional): input_framerate of the received VADIUs.
                 Defaults to 16000.
         """
         super().__init__(**kwargs)
@@ -158,7 +158,7 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
         self.latest_input_iu = None
         self.eos = False
         self.audio_buffer = []
-        self.framerate = framerate
+        self.input_framerate = input_framerate
 
     def process_update(self, update_message):
         """Receives and stores the audio from the DMIUs in the
@@ -172,8 +172,8 @@ class AsrDmModuleSubclass(retico_core.AbstractModule):
         eos = False
         for iu, ut in update_message:
             if iu.action == "process_audio":
-                if self.framerate != iu.rate:
-                    raise ValueError("input framerate differs from iu framerate")
+                if self.input_framerate != iu.rate:
+                    raise ValueError("input_framerate differs from iu input_framerate")
                 # ADD corresponds to new audio chunks of user sentence, to generate new transcription hypothesis
                 if ut == retico_core.UpdateType.COMMIT:
                     eos = True

@@ -139,7 +139,7 @@ class AsrDmModuleSubclassFaster(retico_core.AbstractModule):
     def __init__(
         self,
         device=None,
-        framerate=16000,
+        input_framerate=16000,
         subclass: AbstractASRSubclass = WhisperASRSubclass,
         **kwargs,
     ):
@@ -148,7 +148,7 @@ class AsrDmModuleSubclassFaster(retico_core.AbstractModule):
         Args:
             device (string): wether the model will be executed on cpu or
                 gpu (using "cuda").
-            framerate (int, optional): framerate of the received VADIUs.
+            input_framerate (int, optional): input_framerate of the received VADIUs.
                 Defaults to 16000.
         """
         super().__init__(**kwargs)
@@ -157,7 +157,7 @@ class AsrDmModuleSubclassFaster(retico_core.AbstractModule):
         self._asr_thread_active = False
         self.latest_input_iu = None
         self.audio_buffer = []
-        self.framerate = framerate
+        self.input_framerate = input_framerate
         self.send_transcription = False
         self.process_audio = False
         self.transcription_um = None
@@ -174,8 +174,8 @@ class AsrDmModuleSubclassFaster(retico_core.AbstractModule):
         process_audio = False
         for iu, ut in update_message:
             if iu.action == "process_audio":
-                if self.framerate != iu.rate:
-                    raise ValueError("input framerate differs from iu framerate")
+                if self.input_framerate != iu.rate:
+                    raise ValueError("input_framerate differs from iu input_framerate")
                 # ADD corresponds to new audio chunks of user sentence, to generate new transcription hypothesis
                 if ut == retico_core.UpdateType.COMMIT or ut == retico_core.UpdateType.ADD:
                     process_audio = True
