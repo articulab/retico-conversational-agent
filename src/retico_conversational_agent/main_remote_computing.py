@@ -17,7 +17,7 @@ from retico_core.audio import MicrophonePTTModule
 
 from retico_amq import define_amq_network
 
-from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule3
 
 import retico_conversational_agent as agent
 from retico_conversational_agent import (
@@ -247,6 +247,7 @@ def main_DM_remote_computing_local(wozmic: bool):
     printing = False
     log_folder = "logs/run"
     tts_model_samplerate = 48000
+    rate = 16000
     frame_length = 0.02
     plot_config_path = "configs/plot_config_DM.json"
     plot_live = True
@@ -283,7 +284,8 @@ def main_DM_remote_computing_local(wozmic: bool):
 
     # create modules
     if wozmic:
-        mic = WOZMicrophoneModule(frame_length=frame_length)
+        # mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
+        mic = WOZMicrophoneModule3(frame_length=frame_length, rate=rate)
     else:
         # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
         # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)

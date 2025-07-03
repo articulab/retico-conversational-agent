@@ -15,7 +15,7 @@ from retico_core.log_utils import (
 )
 from retico_core.audio import MicrophonePTTModule
 
-from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule_2
+from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule3
 
 import retico_conversational_agent as agent
 from retico_conversational_agent.main_remote_computing import (
@@ -94,14 +94,13 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
             filter_cases,
             cases=[
                 # [("debug", [True])],
-                [("module", ["TTS DM Module"])],
+                # [("module", ["TTS DM Module"])],
                 # [
                 #     ("module", ["LLM DM HF Module"]),
                 #     ("event", ["incremental_iu_sending_hf", "LLM alignement interruption"]),
                 # ],
                 # [("debug", [True]), ("module", ["DialogueManager Module"])],
-                [("level", ["debug", "info", "warning", "error"])],
-                [("level", ["warning", "error", "exception", "critical"])],
+                [("level", ["debug", "info", "warning", "error", "exception", "critical"])],
             ],
             # cases=[
             #     [("module", ["DialogueManager Module"])],
@@ -122,7 +121,8 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
 
     # create modules
     if wozmic:
-        mic = WOZMicrophoneModule(frame_length=frame_length)
+        # mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
+        mic = WOZMicrophoneModule3(frame_length=frame_length, rate=rate)
     else:
         # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
         # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
