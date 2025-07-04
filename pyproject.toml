@@ -17,6 +17,7 @@ dependencies = [
     "llama-cpp-python",
     "retico-core @ git+https://github.com/articulab/retico-core.git",
     "retico-wozmic @ git+https://github.com/articulab/retico-wozmic.git",
+    "retico-pttmic @ git+https://github.com/articulab/retico-pttmic.git",
     "retico-amq @ git+https://github.com/articulab/retico-amq.git",
     # "TTS[py3117] @ git+https://github.com/articulab/CoquiTTS.git@dev",
     "TTS[versionless] @ git+https://github.com/articulab/CoquiTTS",

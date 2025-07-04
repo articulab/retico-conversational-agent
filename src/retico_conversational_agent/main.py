@@ -13,9 +13,8 @@ from retico_core.log_utils import (
     configurate_plot,
     plot_once,
 )
-from retico_core.audio import MicrophonePTTModule
-
-from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule3
+from retico_wozmic import WOZMicrophoneModule
+from retico_pttmic import PTTMicrophoneModule
 
 import retico_conversational_agent as agent
 from retico_conversational_agent.main_remote_computing import (
@@ -24,7 +23,7 @@ from retico_conversational_agent.main_remote_computing import (
 )
 
 
-def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
+def main_DM(dh: bool, wozmic: bool, pttmic: bool, quantized: bool, llm: str, local_llm: str):
     """The `main_DM` function creates and runs a dialog system that is able to
     have a conversation with the user.
 
@@ -121,11 +120,10 @@ def main_DM(dh: bool, wozmic: bool, quantized: bool, llm: str, local_llm: str):
 
     # create modules
     if wozmic:
-        # mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
-        mic = WOZMicrophoneModule3(frame_length=frame_length, rate=rate)
+        mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
+    elif pttmic:
+        mic = PTTMicrophoneModule(frame_length=frame_length, rate=rate)
     else:
-        # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
-        # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
         mic = retico_core.audio.MicrophoneModule()
 
     vad = agent.VadModule(
@@ -272,6 +270,12 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
+        "--ptt_mic",
+        "-pttmic",
+        help="Use Wizard-Of-Oz Microphone, that plays audio when 'm' key pressed, instead of classical Microphone.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
         "--llm",
         "-llm",
         help="Choose the LLM you want to use.",
@@ -301,6 +305,7 @@ if __name__ == "__main__":
             if args.remote_computing == "local":
                 main_DM_remote_computing_local(
                     wozmic=args.woz_mic,
+                    pttmic=args.ptt_mic,
                 )
             elif args.remote_computing == "remote":
                 main_DM_remote_computing_remote(
@@ -315,6 +320,7 @@ if __name__ == "__main__":
             main_DM(
                 dh=args.handmade_DH,
                 wozmic=args.woz_mic,
+                pttmic=args.ptt_mic,
                 llm=args.llm,
                 quantized=args.quantized_llm,
                 local_llm=args.local_llm,

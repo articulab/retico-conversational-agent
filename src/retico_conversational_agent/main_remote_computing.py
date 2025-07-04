@@ -13,11 +13,10 @@ from retico_core.log_utils import (
     configurate_plot,
     plot_once,
 )
-from retico_core.audio import MicrophonePTTModule
+from retico_wozmic import WOZMicrophoneModule
+from retico_pttmic import PTTMicrophoneModule
 
 from retico_amq import define_amq_network
-
-from retico_wozmic import WOZMicrophoneModule, WOZMicrophoneModule3
 
 import retico_conversational_agent as agent
 from retico_conversational_agent import (
@@ -242,7 +241,7 @@ def main_DM_remote_computing_remote(dh: bool, quantized: bool, llm: str, local_l
     #     )
 
 
-def main_DM_remote_computing_local(wozmic: bool):
+def main_DM_remote_computing_local(wozmic: bool, pttmic: bool):
     # parameters definition
     printing = False
     log_folder = "logs/run"
@@ -284,11 +283,10 @@ def main_DM_remote_computing_local(wozmic: bool):
 
     # create modules
     if wozmic:
-        # mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
-        mic = WOZMicrophoneModule3(frame_length=frame_length, rate=rate)
+        mic = WOZMicrophoneModule(frame_length=frame_length, rate=rate)
+    elif pttmic:
+        mic = PTTMicrophoneModule(frame_length=frame_length, rate=rate)
     else:
-        # mic = MicrophonePTTModule(rate=rate, frame_length=frame_length)
-        # mic = audio.MicrophoneModule(rate=rate, frame_length=frame_length)
         mic = retico_core.audio.MicrophoneModule()
 
     speaker = agent.SpeakerDmModule(
@@ -363,6 +361,12 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
+        "--ptt_mic",
+        "-pttmic",
+        help="Use Wizard-Of-Oz Microphone, that plays audio when 'm' key pressed, instead of classical Microphone.",
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
         "--llm",
         "-llm",
         help="Choose the LLM you want to use.",
@@ -386,7 +390,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.remote_computing is not None:
         if args.remote_computing == "local":
-            main_DM_remote_computing_local(wozmic=args.woz_mic)
+            main_DM_remote_computing_local(
+                wozmic=args.woz_mic,
+                pttmic=args.ptt_mic,
+            )
         elif args.remote_computing == "remote":
             main_DM_remote_computing_remote(
                 dh=args.handmade_DH,
